@@ -1,8 +1,7 @@
-// Flow — процедурные 3D-наушники (форма полноразмерных «алюминиевых» наушников со стальной рамой
-// и сетчатым оголовьем) и хореография по главам (Three.js r160)
+// Flow — процедурные 3D-наушники в форме полноразмерных «алюминиевых» флагманов (светлый анодированный
+// алюминий, подушкообразные чашки-«сквиркл», рама оголовья + сетчатый гамак) и хореография по главам (Three.js r160)
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // ---------- хелперы ----------
@@ -23,8 +22,8 @@ function hpSuperProfile(a, b, n, segs) {
   return pts;
 }
 
-// протяжка замкнутого профиля вдоль плоской кривой; B — нормаль плоскости кривой
-function hpSweep(pathFn, B, profile, segs, caps) {
+// протяжка замкнутого профиля вдоль плоской кривой; B — нормаль плоскости кривой; scaleFn(t) — толщина по длине
+function hpSweep(pathFn, B, profile, segs, caps, scaleFn) {
   const pos = [], nor = [], uv = [], idx = [];
   const m = profile.length;
   const pn = profile.map((p, i) => {
@@ -36,13 +35,13 @@ function hpSweep(pathFn, B, profile, segs, caps) {
   const T = new THREE.Vector3(), N = new THREE.Vector3();
   const ends = [];
   for (let i = 0; i <= segs; i++) {
-    const t = i / segs;
+    const t = i / segs, k = scaleFn ? scaleFn(t) : 1;
     pathFn(t, P); pathFn(Math.max(0, t - 1e-3), Pa); pathFn(Math.min(1, t + 1e-3), Pb);
     T.subVectors(Pb, Pa).normalize();
     N.crossVectors(B, T).normalize();
-    if (i === 0 || i === segs) ends.push({ P: P.clone(), T: T.clone(), N: N.clone(), first: i === 0 });
+    if (i === 0 || i === segs) ends.push({ P: P.clone(), T: T.clone(), N: N.clone(), first: i === 0, k });
     for (let j = 0; j <= m; j++) {
-      const k = j % m, u = profile[k][0], v = profile[k][1], nu = pn[k][0], nv = pn[k][1];
+      const q = j % m, u = profile[q][0] * k, v = profile[q][1] * k, nu = pn[q][0], nv = pn[q][1];
       pos.push(P.x + N.x * u + B.x * v, P.y + N.y * u + B.y * v, P.z + N.z * u + B.z * v);
       nor.push(N.x * nu + B.x * nv, N.y * nu + B.y * nv, N.z * nu + B.z * nv);
       uv.push(t, j / m);
@@ -60,7 +59,7 @@ function hpSweep(pathFn, B, profile, segs, caps) {
     const cn = e.T.clone().multiplyScalar(e.first ? -1 : 1);
     pos.push(e.P.x, e.P.y, e.P.z); nor.push(cn.x, cn.y, cn.z); uv.push(0.5, 0.5);
     for (let j = 0; j < m; j++) {
-      const u = profile[j][0], v = profile[j][1];
+      const u = profile[j][0] * e.k, v = profile[j][1] * e.k;
       pos.push(e.P.x + e.N.x * u + B.x * v, e.P.y + e.N.y * u + B.y * v, e.P.z + e.N.z * u + B.z * v);
       nor.push(cn.x, cn.y, cn.z); uv.push(0.5 + u, 0.5 + v);
     }
@@ -94,13 +93,15 @@ function hpLathe(pts, segs, phiStart, phiLength) {
   return new THREE.LatheGeometry(pts.map(p => new THREE.Vector2(Math.max(p[0], 0.0001), p[1])), segs, phiStart || 0, phiLength || Math.PI * 2);
 }
 
-// Контур чашки — вытянутый скруглённый прямоугольник (суперэллипс), равномерно по длине.
-// Плоскость контура — локальная XZ: X — вертикаль (половина высоты hx), Z — вперёд (половина ширины hz).
-function hpOutline(hx, hz, n, segs) {
+// Контур чашки — «сквиркл»: суперэллипс с большими радиусами углов, чуть выше, чем шире, низ шире верха
+// (tp — сужение кверху). Плоскость контура — локальная XZ: X — вертикаль вниз (полувысота hx), Z — вперёд (полуширина hz).
+// Точки равномерно по длине.
+function hpOutline(hx, hz, n, segs, tp) {
   const F = 2048, raw = [], cum = [0];
   for (let i = 0; i <= F; i++) {
     const t = (i / F) * Math.PI * 2, c = Math.cos(t), s = Math.sin(t);
-    raw.push([hx * Math.sign(c) * Math.pow(Math.abs(c), 2 / n), hz * Math.sign(s) * Math.pow(Math.abs(s), 2 / n)]);
+    const x = hx * Math.sign(c) * Math.pow(Math.abs(c), 2 / n);
+    raw.push([x, hz * Math.sign(s) * Math.pow(Math.abs(s), 2 / n) * (1 + (tp || 0) * x / hx)]);
     if (i) cum.push(cum[i - 1] + Math.hypot(raw[i][0] - raw[i - 1][0], raw[i][1] - raw[i - 1][1]));
   }
   const L = cum[F], pts = [];
@@ -119,9 +120,9 @@ function hpOutline(hx, hz, n, segs) {
   return { pts, nrm, segs, len: L, hx, hz };
 }
 
-// «Токарка» по контуру-стадиону: prof = [[масштаб контура, высота по оси Y, сдвиг по нормали], ...].
-// Профиль идёт так же, как у LatheGeometry (внешняя стенка — снизу вверх), нормали наружу.
-// planar — UV плоской проекцией (для круглых наклеек), иначе UV в единицах длины (для ткани)
+// «Токарка» по контуру: prof = [[масштаб контура, высота по оси Y, сдвиг по нормали], ...].
+// Профиль обходится против часовой в плоскости (масштаб, Y) — нормали наружу.
+// planar — UV плоской проекцией (гравировка), иначе UV в единицах длины (для ткани)
 function hpPill(O, prof, planar) {
   const m = O.segs, pos = [], uv = [], idx = [];
   const vl = [0];
@@ -152,7 +153,7 @@ function hpPill(O, prof, planar) {
   return g;
 }
 
-// сглаживает нормали у вершин с одинаковой позицией (шов развёртки, центр крышки)
+// сглаживает нормали у вершин с одинаковой позицией (шов развёртки, полюс купола)
 function hpWeld(g) {
   const p = g.attributes.position, n = g.attributes.normal, map = new Map();
   for (let i = 0; i < p.count; i++) {
@@ -168,14 +169,19 @@ function hpWeld(g) {
   }
 }
 
-// базис на боковой стенке чашки: X — касательная, Y — нормаль наружу, Z — ось чашки
-function hpRim(O, j, y, push) {
+// базис на поверхности купола чашки в точке контура j на высоте y: X — касательная, Y — нормаль поверхности, Z — ~ось чашки
+// rFn(y) — масштаб контура на высоте y (профиль «подушки»)
+function hpCupFrame(O, rFn, j, y, push) {
   const p = O.pts[j], nn = O.nrm[j];
-  const R = new THREE.Vector3(nn[0], 0, nn[1]);
-  const A = new THREE.Vector3(0, 1, 0);
-  const T = new THREE.Vector3().crossVectors(R, A);
-  const m = new THREE.Matrix4().makeBasis(T, R, A);
-  m.setPosition(p[0] + nn[0] * (push || 0), y, p[1] + nn[1] * (push || 0));
+  const r = rFn(y), e = 0.003;
+  const dr = (rFn(y + e) - rFn(Math.max(0, y - e))) / (y - Math.max(0, y - e) + e);
+  const pn = p[0] * nn[0] + p[1] * nn[1];
+  const R = new THREE.Vector3(nn[0], -dr * pn, nn[1]).normalize();
+  const T = new THREE.Vector3().crossVectors(R, new THREE.Vector3(0, 1, 0)).normalize();
+  const Z = new THREE.Vector3().crossVectors(T, R);
+  const m = new THREE.Matrix4().makeBasis(T, R, Z);
+  push = push || 0;
+  m.setPosition(p[0] * r + R.x * push, y + R.y * push, p[1] * r + R.z * push);
   return m;
 }
 // индекс точки контура: на верхней (sx = -1) или нижней (sx = 1) кромке, ближайшей к заданному z
@@ -191,28 +197,26 @@ function hpRimDir(O, dx, dz) {
   return best;
 }
 
-// провисающий сетчатый «гамак» оголовья: лента между концами рамы, шире рамы, к концам сужается
-function hpCanopy(A, Y0, B, n, segs, J, wFn, lift) {
-  const pos = [], uv = [], idx = [];
+// Сетчатый гамак оголовья: широкая лента под рамой, повторяет дугу, в сечении — провисающая «U»
+// (края у рамы, середина ниже), к концам сужается и сходится в раму. Возвращает геометрию и кромку (для окантовки)
+function hpCanopy(pathFn, t0, t1, segs, J, wFn, sagFn, e0) {
+  const pos = [], uv = [], idx = [], edgeA = [], edgeB = [];
   const P = new THREE.Vector3(), Pa = new THREE.Vector3(), Pb = new THREE.Vector3(), prev = new THREE.Vector3();
-  const T = new THREE.Vector3(), N = new THREE.Vector3(), Z = new THREE.Vector3(0, 0, 1), D = new THREE.Vector3();
-  const path = (t, out) => {
-    const f = -Math.PI / 2 + t * Math.PI, s = Math.sin(f), c = Math.cos(f);
-    return out.set(A * Math.sign(s) * Math.pow(Math.abs(s), 2 / n), Y0 + B * Math.pow(Math.abs(c), 2 / n), 0);
-  };
-  let L = 0; path(0, prev);
+  const T = new THREE.Vector3(), N = new THREE.Vector3(), Z = new THREE.Vector3(0, 0, 1);
+  let L = 0; pathFn(t0, prev);
   for (let i = 0; i <= segs; i++) {
-    const t = i / segs; path(t, P);
-    L += P.distanceTo(prev); prev.copy(P);
-    path(Math.max(0, t - 1e-3), Pa); path(Math.min(1, t + 1e-3), Pb);
-    T.subVectors(Pb, Pa).normalize(); N.crossVectors(T, Z).normalize();
-    if (N.dot(D.set(P.x, P.y - Y0 + 0.3, 0)) < 0) N.negate();
-    const w = wFn(t);
+    const u = i / segs, t = hpLerp(t0, t1, u);
+    pathFn(t, P); L += P.distanceTo(prev); prev.copy(P);
+    pathFn(t - 1e-3, Pa); pathFn(t + 1e-3, Pb);
+    T.subVectors(Pb, Pa).normalize(); N.crossVectors(T, Z).normalize(); // внутрь дуги
+    const w = wFn(u), sg = sagFn(u);
     for (let j = 0; j <= J; j++) {
-      const v = (j / J) * 2 - 1;
-      pos.push(P.x + N.x * lift * v * v, P.y + N.y * lift * v * v, v * w);
+      const v = (j / J) * 2 - 1, off = e0 + sg * (1 - v * v);
+      pos.push(P.x + N.x * off, P.y + N.y * off, v * w);
       uv.push(L, v * w);
     }
+    edgeA.push(new THREE.Vector3(P.x + N.x * e0, P.y + N.y * e0, w));
+    edgeB.push(new THREE.Vector3(P.x + N.x * e0, P.y + N.y * e0, -w));
   }
   for (let i = 0; i < segs; i++) for (let j = 0; j < J; j++) {
     const a = i * (J + 1) + j, b = a + J + 1;
@@ -223,7 +227,7 @@ function hpCanopy(A, Y0, B, n, segs, J, wFn, lift) {
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(idx);
   g.computeVertexNormals();
-  return g;
+  return { geo: g, edge: edgeA.concat(edgeB.reverse()) };
 }
 
 function hpCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
@@ -233,7 +237,7 @@ function hpRingsTexture(base, amp) {
   const c = hpCanvas(4, 512), g = c.getContext('2d');
   for (let y = 0; y < 512; y++) {
     const v = base + Math.floor(hpRand(y, 3) * amp) + (y % 9 === 0 ? 18 : 0);
-    g.fillStyle = `rgb(${v},${v + 1},${v + 4})`; g.fillRect(0, y, 4, 1);
+    g.fillStyle = `rgb(${v},${v + 1},${v + 3})`; g.fillRect(0, y, 4, 1);
   }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
@@ -241,7 +245,7 @@ function hpRingsTexture(base, amp) {
 function hpGrilleTexture() {
   // перфорированная акустическая сетка: дырки прозрачные (alphaTest)
   const c = hpCanvas(128, 128), g = c.getContext('2d');
-  g.fillStyle = '#3a3546'; g.fillRect(0, 0, 128, 128);
+  g.fillStyle = '#4a4744'; g.fillRect(0, 0, 128, 128);
   g.globalCompositeOperation = 'destination-out';
   for (let y = 0; y < 8; y++) for (let x = 0; x < 9; x++) {
     g.beginPath(); g.arc(x * 16 + (y % 2) * 8, y * 16 + 8, 5.2, 0, Math.PI * 2); g.fill();
@@ -252,7 +256,7 @@ function hpGrilleTexture() {
 
 function hpPcbTexture() {
   const c = hpCanvas(512, 512), g = c.getContext('2d');
-  g.fillStyle = '#16122a'; g.fillRect(0, 0, 512, 512);
+  g.fillStyle = '#121a14'; g.fillRect(0, 0, 512, 512);
   g.strokeStyle = '#c99a45'; g.lineWidth = 3; g.lineCap = 'round';
   for (let i = 0; i < 46; i++) {
     let x = hpRand(i, 1) * 512, y = hpRand(i, 2) * 512;
@@ -264,11 +268,12 @@ function hpPcbTexture() {
     g.stroke();
     g.fillStyle = '#e2b866'; g.beginPath(); g.arc(x, y, 6, 0, Math.PI * 2); g.fill();
   }
-  g.fillStyle = '#d9cff5'; g.font = 'bold 22px monospace'; g.fillText('FLOW-HP2 REV.C', 24, 490);
+  g.fillStyle = '#e8e2d6'; g.font = 'bold 22px monospace'; g.fillText('FLOW-HP2 REV.C', 24, 490);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
-// Вязаная акустическая ткань: карта высот «петель» -> нормал-карта; сетка гамака — ромбы-дырки (альфа)
+// Вязаная акустическая ткань амбушюров (мелкая «косичка») и сетка гамака (ромбическая ячейка):
+// карта высот -> нормал-карта + цветовая карта (впадины темнее)
 function hpKnitMaps() {
   const N = 128, C = 16, h = new Float32Array(N * N), hm = new Float32Array(N * N);
   const lobe = (fx, fy, cx, ang) => {
@@ -279,12 +284,10 @@ function hpKnitMaps() {
   };
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     const fx = ((x % C) + 0.5) / C, fy = ((y % C) + 0.5) / C;
-    // трикотажная «косичка»: две наклонные петли в клетке
     h[y * N + x] = Math.max(lobe(fx, fy, 0.29, 0.5), lobe(fx, fy, 0.71, -0.5));
-    // сетка гамака: ромбическая ячейка, перемычки выпуклые
     const gx = ((x + (Math.floor(y / C) % 2) * C / 2) % C + 0.5) / C;
     const d = Math.abs(gx - 0.5) + Math.abs(fy - 0.5);
-    hm[y * N + x] = hpSmooth(0.26, 0.42, d);
+    hm[y * N + x] = hpSmooth(0.22, 0.4, d);
   }
   const toNormal = (H, k) => {
     const c = hpCanvas(N, N), g = c.getContext('2d'), img = g.createImageData(N, N);
@@ -298,31 +301,36 @@ function hpKnitMaps() {
     g.putImageData(img, 0, 0);
     const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
   };
-  const knit = toNormal(h, 2.2), mesh = toNormal(hm, 3.0);
-  const ac = hpCanvas(N, N), ag = ac.getContext('2d'), ai = ag.createImageData(N, N);
-  for (let i = 0; i < N * N; i++) { const v = 40 + hm[i] * 215; ai.data[i * 4] = ai.data[i * 4 + 1] = ai.data[i * 4 + 2] = v; ai.data[i * 4 + 3] = 255; }
-  ag.putImageData(ai, 0, 0);
-  const alpha = new THREE.CanvasTexture(ac); alpha.wrapS = alpha.wrapT = THREE.RepeatWrapping;
-  return { knit, mesh, alpha };
+  const toColor = (H, lo, hi) => {
+    const c = hpCanvas(N, N), g = c.getContext('2d'), img = g.createImageData(N, N);
+    for (let i = 0; i < N * N; i++) { const v = Math.round(255 * (lo + (hi - lo) * H[i])); img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255; }
+    g.putImageData(img, 0, 0);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+  };
+  return { knit: toNormal(h, 2.0), knitCol: toColor(h, 0.8, 1), mesh: toNormal(hm, 2.6), meshCol: toColor(hm, 0.3, 1) };
 }
 
-// внутренняя ткань амбушюра с крупной буквой стороны
+// внутренняя ткань амбушюра с буквой стороны (как у оригинала — тон в тон)
 function hpSideTexture(letter) {
   const c = hpCanvas(256, 256), g = c.getContext('2d');
-  g.fillStyle = '#7d6f9e'; g.fillRect(0, 0, 256, 256);
-  g.fillStyle = '#887aa9'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = '700 96px "Syne", "Rubik", "Arial", sans-serif';
+  g.fillStyle = '#a19c96'; g.fillRect(0, 0, 256, 256);
+  g.fillStyle = '#9a958f'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = '700 96px "Syne", "Arial", sans-serif';
   g.fillText(letter, 128, 136);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
+// знак flow для гравировки: белое на прозрачном (используется как alphaMap), ширина ~38% чашки
 function hpDrawLogo(canvas) {
   const g = canvas.getContext('2d');
   g.clearRect(0, 0, canvas.width, canvas.height);
   g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  const k = canvas.width / 1024;
-  g.font = `800 ${280 * k}px "Syne", "Rubik", "Arial Black", sans-serif`;
-  g.fillText('flow', canvas.width / 2, canvas.height / 2 + 6 * k);
+  let fs = 200;
+  g.font = `800 ${fs}px "Syne", "Arial Black", sans-serif`;
+  const w = g.measureText('flow').width || fs * 2.2;
+  fs = fs * (canvas.width * 0.38) / w;
+  g.font = `800 ${fs}px "Syne", "Arial Black", sans-serif`;
+  g.fillText('flow', canvas.width / 2, canvas.height / 2 + fs * 0.04);
 }
 
 // Syne для гравировки на чашке: подключаем с Google Fonts, если вёрстка его ещё не подключила
@@ -337,16 +345,33 @@ function hpEnsureSyne(onReady) {
   } catch (e) { /* без Syne — запасной шрифт */ }
 }
 
-function hpAddEnvPanels(env) {
+// Окружение для отражений алюминия: тёплый софтбокс сверху-справа, фиолетовый слева-сзади,
+// тёплый «отсвет фона» снизу-спереди и белая полоса сверху — длинные мягкие блики на куполе чашки
+// Студийное окружение вместо светлой «комнаты»: тёмная сфера с вертикальным градиентом + софтбоксы.
+// Металл получает и светлые длинные блики, и тёмные зоны — без них алюминий выглядит белым пластиком
+function hpStudioEnv() {
+  const env = new THREE.Scene();
+  const sg = new THREE.SphereGeometry(20, 32, 16);
+  const col = [], p = sg.attributes.position, c = new THREE.Color();
+  const top = new THREE.Color(0x4a4750), mid = new THREE.Color(0x2e2b33), bot = new THREE.Color(0x141118);
+  for (let i = 0; i < p.count; i++) {
+    const y = p.getY(i) / 20;
+    if (y > 0) c.copy(mid).lerp(top, y); else c.copy(mid).lerp(bot, Math.min(1, -y * 1.6));
+    col.push(c.r, c.g, c.b);
+  }
+  sg.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  env.add(new THREE.Mesh(sg, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
   const add = (color, k, w, h, x, y, z) => {
     const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(k), side: THREE.DoubleSide });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
     m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m);
   };
-  // яркий фиолетовый в отражениях ACES уводит в голубой — держим его умеренным и чуть теплее
-  add(0xa66cf5, 3.2, 2.4, 7, -6, 2, -4);
-  add(0x38bdf8, 0.45, 2.2, 7, 6, 1, -4.5);
-  add(0xc4a1ff, 2.6, 8, 1.2, 0, 6.5, -2);
+  add(0xffffff, 2.4, 9, 4, 0, 8, 1.5);       // большой верхний софтбокс
+  add(0xffd2a8, 2.8, 2.6, 7, 7, 2.5, 3.5);   // тёплый key-стрип справа
+  add(0x9d6fff, 2.4, 2.6, 8, -7, 1.5, -3.5); // фиолетовый рим слева-сзади
+  add(0xecebf0, 1.5, 10, 5, 0, 0.5, 9);   // мягкий фронтальный fill (анфас чашки в финале)
+  add(0xff9a4a, 0.6, 12, 3, 0, -7, 3);       // тёплый отсвет фона снизу
+  return env;
 }
 
 // ---------- сцена ----------
@@ -354,22 +379,26 @@ function createHeadphonesScene(canvas) {
   const V3 = THREE.Vector3, Q = THREE.Quaternion;
   const DEG = Math.PI / 180;
   const DPR = window.devicePixelRatio || 1;
+  // телефон/планшет: меньше сегментов (LOD), без sheen, потолок DPR ниже — средний Android тянет 60 fps
+  let LOW = false;
+  try { LOW = Math.min(screen.width, screen.height) < 700 || matchMedia('(pointer: coarse)').matches; } catch (e) { /* */ }
+  const LQ = (hi, lo) => (LOW ? lo : hi);
+  const PR_MAX = LOW ? 1.5 : 1.75;
   // на плотных экранах MSAA почти не виден, а fill-rate съедает
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: DPR < 1.5, powerPreference: 'high-performance' });
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.0;
 
   const scene = new THREE.Scene();
   const FOV = 30, CAM_D = 10, TAN = Math.tan(FOV / 2 * DEG);
   const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 100);
   camera.position.set(0, 0, CAM_D);
 
-  // окружение: RoomEnvironment + фиолетовые/голубые панели для отражений в алюминии
+  // окружение: студия (тёмный градиент + тёплые/фиолетовые софтбоксы) для отражений в алюминии
   const pmrem = new THREE.PMREMGenerator(renderer);
-  const room = new RoomEnvironment(renderer);
-  hpAddEnvPanels(room);
+  const room = hpStudioEnv();
   let envRT = pmrem.fromScene(room, 0.04);
   scene.environment = envRT.texture;
   pmrem.dispose();
@@ -385,86 +414,96 @@ function createHeadphonesScene(canvas) {
   canvas.addEventListener('webglcontextlost', onCtxLost, false);
   canvas.addEventListener('webglcontextrestored', onCtxRestored, false);
 
-  // свет под тёмный фон: мягкий белый key сверху-спереди, фиолетовый и голубой римы сзади — силуэт читается
-  scene.add(new THREE.HemisphereLight(0xd8ccff, 0x0c0a14, 0.55));
-  const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(2, 6, 5); scene.add(key);
-  const fill = new THREE.DirectionalLight(0xd2c8ee, 0.7); fill.position.set(-5, -1, 4); scene.add(fill);
-  const rimA = new THREE.DirectionalLight(0x9d6fff, 7.5); rimA.position.set(-5, 4.5, -4.5); scene.add(rimA);
-  // голубой рим строго сзади: обводит силуэт, но не ложится отливом на видимые рёбра алюминия
-  const rimB = new THREE.DirectionalLight(0x38bdf8, 2.6); rimB.position.set(3.5, 1.5, -7.5); scene.add(rimB);
+  // свет (ART.md): тёплый key сверху-справа, фиолетовый рим слева-сзади, слабый холодный fill, тёплый контровой справа-сзади
+  scene.add(new THREE.HemisphereLight(0xf4f1ee, 0x1a1422, 0.7));
+  const key = new THREE.DirectionalLight(0xffd9b8, 2.4); key.position.set(4, 6, 5); scene.add(key);
+  const fill = new THREE.DirectionalLight(0xc9d2ff, 0.45); fill.position.set(-5, 0, 4); scene.add(fill);
+  const rimA = new THREE.DirectionalLight(0x9d6fff, 6.5); rimA.position.set(-5, 4, -5); scene.add(rimA);
+  const rimB = new THREE.DirectionalLight(0xffa04d, 1.2); rimB.position.set(5, 1, -6); scene.add(rimB);
 
   // ---------- материалы (один раз) ----------
   const DS = THREE.DoubleSide;
   const plateTex = hpRingsTexture(150, 60), coneTex = hpRingsTexture(80, 70);
   const grilleTex = hpGrilleTexture(), pcbTex = hpPcbTexture();
   const KM = hpKnitMaps();
-  const KNIT_TILE = 0.2; // клетка ткани ≈ 0.025 у.е.
+  const KNIT_TILE = 0.16; // клетка ткани ≈ 0.02 у.е. (≈ 1.3 мм)
   const knitPad = KM.knit; knitPad.repeat.set(1 / KNIT_TILE, 1 / KNIT_TILE);
-  const knitIn = KM.knit.clone(); knitIn.needsUpdate = true; knitIn.repeat.set(5.5, 6.5);
-  const meshN = KM.mesh; meshN.repeat.set(1 / 0.16, 1 / 0.16);
-  const meshA = KM.alpha; meshA.repeat.set(1 / 0.16, 1 / 0.16);
+  const knitCol = KM.knitCol; knitCol.repeat.set(1 / KNIT_TILE, 1 / KNIT_TILE);
+  const knitIn = KM.knit.clone(); knitIn.needsUpdate = true; knitIn.repeat.set(6.5, 7.5);
+  const meshN = KM.mesh; meshN.repeat.set(1 / 0.055, 1 / 0.055);
+  const meshC = KM.meshCol; meshC.repeat.set(1 / 0.055, 1 / 0.055);
   const sideTex = { R: hpSideTexture('R'), L: hpSideTexture('L') };
-  const logoCanvas = hpCanvas(2048, 1024); hpDrawLogo(logoCanvas);
-  const logoTex = new THREE.CanvasTexture(logoCanvas); logoTex.colorSpace = THREE.SRGBColorSpace; logoTex.anisotropy = 4;
-  const ALU = 0xac9bd2; // фиолетовый анодированный алюминий, приглушённая лаванда
+  const logoCanvas = hpCanvas(1024, 1226); hpDrawLogo(logoCanvas);
+  const logoTex = new THREE.CanvasTexture(logoCanvas); logoTex.anisotropy = 4;
+  const SILVER = 0xd6d5d3; // светлый анодированный алюминий (Silver/Starlight)
+  const WARM = 0xffa04d;
   const mat = {
-    // сатиновый анодированный металл: шероховатость выше и приглушённые отражения, без перламутра по рёбрам
-    alu: new THREE.MeshPhysicalMaterial({ color: ALU, metalness: 1, roughness: 0.42, envMapIntensity: 0.85 }),
-    steel: new THREE.MeshStandardMaterial({ color: 0xe8e9ef, metalness: 1, roughness: 0.12 }),
-    // ткань амбушюров — в тон алюминию или чуть темнее: база темнее и насыщеннее, блеск ворса слабее (иначе подушки белеют)
-    knit: new THREE.MeshPhysicalMaterial({ color: 0x6d5d9c, metalness: 0, roughness: 0.92, sheen: 0.5, sheenColor: new THREE.Color(0xa38ce4), sheenRoughness: 0.5, normalMap: knitPad, normalScale: new THREE.Vector2(0.9, 0.9) }),
-    padInR: new THREE.MeshStandardMaterial({ color: 0xffffff, map: sideTex.R, normalMap: knitIn, normalScale: new THREE.Vector2(0.7, 0.7), roughness: 0.92, emissive: 0x9d6fff, emissiveIntensity: 0 }),
-    padInL: new THREE.MeshStandardMaterial({ color: 0xffffff, map: sideTex.L, normalMap: knitIn, normalScale: new THREE.Vector2(0.7, 0.7), roughness: 0.92 }),
-    canopy: new THREE.MeshStandardMaterial({ color: 0xa496c8, alphaMap: meshA, transparent: true, depthWrite: false, normalMap: meshN, normalScale: new THREE.Vector2(0.8, 0.8), metalness: 0.1, roughness: 0.75, side: DS }),
-    hole: new THREE.MeshStandardMaterial({ color: 0x06050a, metalness: 0.2, roughness: 0.6 }),
-    seam: new THREE.MeshStandardMaterial({ color: 0x15121d, metalness: 0.4, roughness: 0.5 }),
-    plastic: new THREE.MeshStandardMaterial({ color: 0x1b1824, metalness: 0.2, roughness: 0.5, side: DS }),
-    grille: new THREE.MeshStandardMaterial({ color: 0x8a82a0, map: grilleTex, alphaTest: 0.5, metalness: 0.7, roughness: 0.32, side: DS }),
-    gun: new THREE.MeshStandardMaterial({ color: 0x8a8597, metalness: 1, roughness: 0.3 }),
-    // диффузор: заметные концентрические рёбра — читается как мембрана, а не плоский диск
-    cone: new THREE.MeshPhysicalMaterial({ color: 0x6c6680, map: coneTex, metalness: 0.8, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.12, side: DS }),
-    cap: new THREE.MeshPhysicalMaterial({ color: 0x221d2e, metalness: 0.8, roughness: 0.18, clearcoat: 1, emissive: 0x9d6fff, emissiveIntensity: 0, side: DS }),
+    // сатиновый анодированный алюминий: мягкие длинные блики
+    alu: new THREE.MeshPhysicalMaterial({ color: SILVER, metalness: 1, roughness: 0.44, envMapIntensity: 1.0 }),
+    steel: new THREE.MeshStandardMaterial({ color: 0xf1f2f5, metalness: 1, roughness: 0.08 }),
+    // мягкое покрытие рамы оголовья и окантовки гамака
+    soft: new THREE.MeshPhysicalMaterial({ color: 0xc6c6c8, metalness: 0, roughness: 0.55, sheen: 0.4, sheenColor: new THREE.Color(0xffffff), sheenRoughness: 0.5 }),
+    knit: new THREE.MeshPhysicalMaterial({ color: 0xd3d4d6, map: knitCol, metalness: 0, roughness: 0.95, sheen: 0.6, sheenColor: new THREE.Color(0xffffff), sheenRoughness: 0.5, normalMap: knitPad, normalScale: new THREE.Vector2(0.55, 0.55) }),
+    padInR: new THREE.MeshStandardMaterial({ color: 0xffffff, map: sideTex.R, normalMap: knitIn, normalScale: new THREE.Vector2(0.7, 0.7), roughness: 0.95, emissive: WARM, emissiveIntensity: 0 }),
+    padInL: new THREE.MeshStandardMaterial({ color: 0xffffff, map: sideTex.L, normalMap: knitIn, normalScale: new THREE.Vector2(0.7, 0.7), roughness: 0.95 }),
+    canopy: new THREE.MeshPhysicalMaterial({ color: 0xc8c8ca, map: meshC, normalMap: meshN, normalScale: new THREE.Vector2(0.9, 0.9), metalness: 0, roughness: 0.9, sheen: 0.5, sheenColor: new THREE.Color(0xffffff), sheenRoughness: 0.5, side: DS }),
+    hole: new THREE.MeshStandardMaterial({ color: 0x0a0909, metalness: 0.2, roughness: 0.6 }),
+    seam: new THREE.MeshStandardMaterial({ color: 0x1d1b1a, metalness: 0.3, roughness: 0.6 }),
+    plastic: new THREE.MeshStandardMaterial({ color: 0x1f1d22, metalness: 0.2, roughness: 0.5, side: DS }),
+    grille: new THREE.MeshStandardMaterial({ color: 0x9a968f, map: grilleTex, alphaTest: 0.5, metalness: 0.7, roughness: 0.32, side: DS }),
+    gun: new THREE.MeshStandardMaterial({ color: 0x8f8b86, metalness: 1, roughness: 0.3 }),
+    cone: new THREE.MeshPhysicalMaterial({ color: 0x77736e, map: coneTex, metalness: 0.8, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.12, side: DS }),
+    cap: new THREE.MeshPhysicalMaterial({ color: 0x24211f, metalness: 0.8, roughness: 0.18, clearcoat: 1, emissive: WARM, emissiveIntensity: 0, side: DS }),
     copper: new THREE.MeshStandardMaterial({ color: 0xc8804a, metalness: 1, roughness: 0.28, side: DS }),
-    magnet: new THREE.MeshStandardMaterial({ color: 0x2f2c38, metalness: 1, roughness: 0.25 }),
-    plate: new THREE.MeshStandardMaterial({ color: 0xcfcbe0, map: plateTex, metalness: 0.9, roughness: 0.3 }),
-    basket: new THREE.MeshStandardMaterial({ color: 0x2c2838, metalness: 0.9, roughness: 0.4, emissive: 0x9d6fff, emissiveIntensity: 0, side: DS }),
-    rimGlow: new THREE.MeshStandardMaterial({ color: 0x120c1e, emissive: 0xc4a1ff, emissiveIntensity: 0, toneMapped: false }),
+    magnet: new THREE.MeshStandardMaterial({ color: 0x34322f, metalness: 1, roughness: 0.25 }),
+    plate: new THREE.MeshStandardMaterial({ color: 0xd2cec8, map: plateTex, metalness: 0.9, roughness: 0.3 }),
+    basket: new THREE.MeshStandardMaterial({ color: 0x2e2b29, metalness: 0.9, roughness: 0.4, emissive: WARM, emissiveIntensity: 0, side: DS }),
+    rimGlow: new THREE.MeshStandardMaterial({ color: 0x1a1008, emissive: WARM, emissiveIntensity: 0, toneMapped: false }),
     pcb: new THREE.MeshStandardMaterial({ color: 0xffffff, map: pcbTex, metalness: 0.25, roughness: 0.45 }),
-    chip: new THREE.MeshStandardMaterial({ color: 0x0d0c12, metalness: 0.4, roughness: 0.3 }),
-    battery: new THREE.MeshPhysicalMaterial({ color: 0x3b3550, metalness: 0.5, roughness: 0.35, clearcoat: 0.7 }),
-    // светящиеся акценты мимо тонмаппинга: ACES обесцвечивает насыщенный фиолетовый в бледный
-    glow: new THREE.MeshStandardMaterial({ color: 0x0e0a18, emissive: 0x9d6fff, emissiveIntensity: 1.0, toneMapped: false }),
-    led: new THREE.MeshStandardMaterial({ color: 0x06121a, emissive: 0x38bdf8, emissiveIntensity: 1.2, toneMapped: false }),
-    cable: new THREE.MeshStandardMaterial({ color: 0xe9e5f2, metalness: 0, roughness: 0.55 }),
-    // логотип — прозрачная плоскость с мягкой альфой: подсвеченная гравировка
-    logo: new THREE.MeshStandardMaterial({ color: 0x2a1d52, map: logoTex, emissive: 0xb48cff, emissiveMap: logoTex, emissiveIntensity: 1.35, metalness: 0.6, roughness: 0.3, toneMapped: false, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }),
-    // обычное смешивание: аддитивный фиолетовый поверх светлого алюминия выгорает в белое
-    pulse: new THREE.MeshBasicMaterial({ color: 0x9d6fff, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, side: DS }),
+    chip: new THREE.MeshStandardMaterial({ color: 0x0d0c0c, metalness: 0.4, roughness: 0.3 }),
+    battery: new THREE.MeshPhysicalMaterial({ color: 0x3a3836, metalness: 0.5, roughness: 0.35, clearcoat: 0.7 }),
+    foam: new THREE.MeshStandardMaterial({ color: 0x2c2a2e, metalness: 0, roughness: 1, side: DS }),
+    kapton: new THREE.MeshStandardMaterial({ color: 0xd08a30, metalness: 0.3, roughness: 0.35, side: DS }),
+    // светящиеся акценты мимо тонмаппинга, тёплые (ART.md)
+    glow: new THREE.MeshStandardMaterial({ color: 0x140a04, emissive: WARM, emissiveIntensity: 0, toneMapped: false }),
+    led: new THREE.MeshStandardMaterial({ color: 0x06100a, emissive: 0xbfffe0, emissiveIntensity: 0.9, toneMapped: false }),
+    cable: new THREE.MeshStandardMaterial({ color: 0xf0eeeb, metalness: 0, roughness: 0.55 }),
+    // лазерная гравировка: тот же металл, но матовее и чуть темнее; форма знака — alphaMap
+    logo: new THREE.MeshPhysicalMaterial({ color: 0xc2c0bd, metalness: 1, roughness: 0.68, alphaMap: logoTex, transparent: true, depthWrite: false, emissive: WARM, emissiveIntensity: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+    pulse: new THREE.MeshBasicMaterial({ color: WARM, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, side: DS }),
   };
   mat.pulse2 = mat.pulse.clone();
+  // на слабом железе sheen (лишний BRDF-слой во фрагментном шейдере) выключаем
+  if (LOW) ['knit', 'canopy', 'soft'].forEach(k => { mat[k].sheen = 0; });
   const redrawLogo = () => {
     hpDrawLogo(logoCanvas); logoTex.needsUpdate = true;
     ['R', 'L'].forEach(s => { const t = hpSideTexture(s); sideTex[s].image = t.image; sideTex[s].needsUpdate = true; t.dispose(); });
   };
   hpEnsureSyne(redrawLogo);
   if (document.fonts) {
-    document.fonts.load('800 280px "Syne"').then(redrawLogo, () => {});
+    document.fonts.load('800 200px "Syne"').then(redrawLogo, () => {});
     document.fonts.ready.then(redrawLogo);
     if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', redrawLogo);
   }
 
   // ---------- геометрия ----------
-  // Размеры (у.е. ≈ 6.7 мм): высота ~2.8, ширина ~2.6. Чашка — стадион 1.31 x 1.06.
-  const CB = 0.655, CA = 0.53, CN = 3.2; // полувысота, полуширина и «квадратность» чашки
-  const SD = 0.43;                       // глубина алюминиевой чашки
-  const PAD_IN = 0.45;                   // внутренняя плоскость амбушюров
-  const P0 = -0.018, PD = 0.40, E = P0 - PD; // от плоскости чашки: зазор-магнит, толщина подушки
-  const SHELL_IN = PAD_IN - E;           // ~0.868
+  // 1 у.е. ≈ 67 мм: высота ~2.7 (187 мм), ширина ~2.45 (169 мм). Чашка 1.40 x 1.17 (94 x 78 мм).
+  const CB = 0.70, CA = 0.585, CN = 2.7, TP = 0.065;  // полувысота, полуширина, «квадратность», сужение кверху
+  const SD = 0.38, YW = 0.05, DM = 2.6;                // толщина алюминиевой чашки, прямой участок стенки, профиль купола
+  // масштаб контура на высоте y: прямая стенка, затем суперэллиптический «подушечный» купол
+  const rFn = (y) => (y <= YW ? 1 : Math.pow(Math.max(0, 1 - Math.pow(Math.min(1, (y - YW) / (SD - YW)), DM)), 1 / DM));
+  const domeY = (r) => YW + (SD - YW) * Math.pow(Math.max(0, 1 - Math.pow(r, DM)), 1 / DM);
+  const PAD_IN = 0.52;                                  // внутренняя плоскость амбушюров (от центра головы)
+  const GAP = 0.012, PD = 0.29;                         // шов-магнит и толщина подушки
+  const P0 = -GAP, E = P0 - PD;
+  const SHELL_IN = PAD_IN - E;                          // ~0.822
   const SHELL_OUT = SHELL_IN + SD;
-  const HX = SHELL_IN + SD / 2;          // ось шарнира/штанги
-  const CY = -0.72;                      // центр чашки по высоте
-  const CUP_TOP = CY + CB;
-  const Y0 = 0.36, BAND_B = 1.02;        // концы рамы и высота дуги
+  const Y_STEM = 0.16;                                  // где штанга входит в верх чашки (по толщине)
+  const HX = SHELL_IN + Y_STEM;                         // ось штанги
+  const CY = -0.72;                                     // центр чашки по высоте
+  const CUP_TOP = CY + CB * rFn(Y_STEM);
+  const Y0 = CUP_TOP + 0.175, BAND_B = 1.06;            // концы рамы и высота дуги
+  const Y_DET = 0.13;                                   // высота деталей на боковине (кнопки, порт, микрофоны)
   const root = new THREE.Group();
   const parts = [];
   const part = (parent, geo, material, name, tags, place) => {
@@ -475,27 +514,41 @@ function createHeadphonesScene(canvas) {
     return m;
   };
 
-  // --- оголовье: стальная дуга-рама + сетчатый гамак под ней ---
+  // --- оголовье: рама-дуга (мягкое покрытие) + широкий сетчатый гамак с окантовкой ---
   const bandPath = (t, out) => {
-    const f = -Math.PI / 2 + t * Math.PI, s = Math.sin(f), c = Math.cos(f), n = 2.5;
+    const f = -Math.PI / 2 + t * Math.PI, s = Math.sin(f), c = Math.cos(f), n = 2.4;
     return out.set(HX * Math.sign(s) * Math.pow(Math.abs(s), 2 / n), Y0 + BAND_B * Math.pow(Math.abs(c), 2 / n), 0);
   };
-  part(root, hpSweep(bandPath, new V3(0, 0, 1), hpSuperProfile(0.019, 0.03, 4, 20), 160, true), mat.steel, 'band', 'big');
-  part(root, hpCanopy(HX - 0.035, Y0 + 0.08, BAND_B - 0.26, 2.15, 140, 14, t => 0.075 + 0.185 * Math.pow(Math.sin(Math.PI * t), 0.4), 0.03), mat.canopy, 'canopy', 'big');
+  // у концов рама чуть толще — там в неё сходится гамак
+  const bandScale = (t) => 1 + 0.16 * (Math.exp(-Math.pow((t - 0.1) / 0.05, 2)) + Math.exp(-Math.pow((t - 0.9) / 0.05, 2)));
+  part(root, hpSweep(bandPath, new V3(0, 0, 1), hpSuperProfile(0.046, 0.054, 2.6, LQ(24, 14)), LQ(200, 110), true, bandScale), mat.soft, 'band', 'big');
+  const CW = 0.315; // полуширина гамака (~0.54 ширины чашки)
+  const can = hpCanopy(bandPath, 0.085, 0.915, LQ(150, 80), LQ(16, 10),
+    u => 0.035 + (CW - 0.035) * Math.pow(Math.sin(Math.PI * u), 0.32),
+    u => 0.012 + 0.15 * Math.pow(Math.sin(Math.PI * u), 0.85), 0.006);
+  part(root, can.geo, mat.canopy, 'canopy', 'big');
+  part(root, new THREE.TubeGeometry(new THREE.CatmullRomCurve3(can.edge, true), LQ(420, 220), 0.019, LQ(8, 6), true), mat.soft, 'piping', 'big');
 
   // общие геометрии обеих сторон
-  const O = hpOutline(CB, CA, CN, 160);
+  const O = hpOutline(CB, CA, CN, LQ(136, 88), TP);
+  // профиль алюминиевой чашки: внутренняя крышка -> мягкая кромка -> короткая стенка -> «подушка» купола
+  const shellProf = [[0, 0], [0.4, 0], [0.75, 0], [0.92, 0], [0.972, 0.003], [0.993, 0.012], [1, 0.026]];
+  const SR = LQ(48, 28);
+  for (let i = 0; i <= SR; i++) {
+    const th = (i / SR) * Math.PI / 2;
+    shellProf.push([Math.pow(Math.cos(th), 2 / DM), YW + (SD - YW) * Math.pow(Math.sin(th), 2 / DM)]);
+  }
+  shellProf[shellProf.length - 1][0] = 0;
+  const HO = 0.56; // проём амбушюра
   const G = {
-    // чашка: внутренняя крышка, прямая стенка, мягкое скругление к плоской внешней грани
-    shell: hpPill(O, [[0, 0], [0.5, 0], [0.86, 0], [1, 0, -0.045], [1, 0.012, -0.016], [1, 0.04, 0], [1, 0.18, 0.003], [1, 0.3, 0], [1, 0.345, -0.006], [1, 0.38, -0.022], [1, 0.405, -0.045], [1, 0.421, -0.075], [1, 0.429, -0.105], [0.74, 0.433], [0.55, 0.4375], [0.36, 0.4405], [0.2, 0.442], [0.08, 0.4425], [0, 0.4425]]),
-    padBase: hpPill(O, [[0, P0], [0.955, P0], [0.955, 0], [0, 0]]),
-    // толстая подушка той же формы: ухо -> наружу -> стенка вверх -> к чашке -> внутрь проёма
-    pad: hpPill(O, [[0.6, E + 0.05], [0.615, E + 0.016], [0.66, E + 0.002], [0.76, E - 0.004], [0.87, E + 0.002], [0.94, E + 0.025], [0.98, E + 0.075], [0.998, E + 0.15], [1.0, E + 0.24], [0.997, P0 - 0.1], [0.985, P0 - 0.04], [0.965, P0 - 0.008], [0.94, P0], [0.75, P0], [0.6, P0], [0.585, P0 - 0.025], [0.585, E + 0.12], [0.6, E + 0.05]]),
-    padIn: hpPill(O, [[0, P0 - 0.03], [0.3, P0 - 0.03], [0.6, P0 - 0.03]], true),
-    ring: (() => {
-      const pts = O.pts.map(p => new V3(p[0] * 0.74, SD + 0.004, p[1] * 0.74));
-      return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true), 220, 0.0055, 6, true);
-    })(),
+    shell: hpPill(O, shellProf),
+    // гравировка: лоскут купола r <= 0.62 чуть над поверхностью, UV — плоская проекция
+    logo: hpPill(O, Array.from({ length: 15 }, (_, i) => { const r = 0.62 * (1 - i / 14); return [r, domeY(r) + 0.0022]; }), true),
+    padBase: hpPill(O, [[0, P0], [0.972, P0], [0.972, 0.002], [0, 0.002]]),
+    // подушка той же формы, вровень с чашкой: лицо -> наружу -> стенка вверх -> к чашке -> внутрь проёма
+    pad: hpPill(O, [[HO + 0.015, E + 0.05], [HO + 0.04, E + 0.014], [HO + 0.09, E + 0.002], [0.74, E - 0.004], [0.86, E], [0.93, E + 0.018], [0.97, E + 0.055], [0.993, E + 0.11], [1.004, E + 0.18], [1.003, P0 - 0.06], [0.995, P0 - 0.02], [0.978, P0 - 0.004], [0.95, P0], [0.75, P0], [HO, P0], [HO - 0.012, P0 - 0.03], [HO - 0.014, E + 0.13], [HO, E + 0.075], [HO + 0.015, E + 0.05]]),
+    padIn: hpPill(O, [[0, E + 0.17], [0.3, E + 0.17], [HO, E + 0.17]], true),
+    carrier: hpPill(O, [[0.52, 0.01], [0.9, 0.01], [0.9, 0.03], [0.52, 0.03], [0.52, 0.01]]),
     grille: new THREE.CircleGeometry(0.34, 64).rotateX(Math.PI / 2),
     gasket: new THREE.TorusGeometry(0.3, 0.012, 10, 96).rotateX(Math.PI / 2),
     // драйвер 40 мм: корзина (внешнее кольцо + кольцо магнитной системы + 6 спиц)
@@ -509,26 +562,29 @@ function createHeadphonesScene(canvas) {
     coil: new THREE.CylinderGeometry(0.062, 0.062, 0.07, 32, 1, true),
     plate: hpLathe([[0, 0.173], [0.108, 0.173], [0.117, 0.177], [0.12, 0.184], [0.117, 0.191], [0.108, 0.195], [0.06, 0.195], [0.056, 0.2], [0, 0.2]], 64),
     magnet: new THREE.CylinderGeometry(0.106, 0.106, 0.054, 48),
+    damp: new THREE.CylinderGeometry(0.25, 0.25, 0.018, 48),
+    flex: new RoundedBoxGeometry(0.28, 0.006, 0.09, 2, 0.003),
     screw: mergeGeometries([new THREE.CylinderGeometry(0.014, 0.014, 0.05, 12).translate(0, 0.025, 0), new THREE.CylinderGeometry(0.026, 0.026, 0.012, 16)]),
-    // три микрофонных отверстия в ряд
-    mic: mergeGeometries([-1, 0, 1].map(k => new THREE.CylinderGeometry(0.0115, 0.0115, 0.01, 14).translate(k * 0.03, 0, 0))),
-    pivot: mergeGeometries([new THREE.CylinderGeometry(0.066, 0.072, 0.036, 40), new THREE.TorusGeometry(0.06, 0.006, 8, 40).rotateX(Math.PI / 2).translate(0, 0.018, 0)]),
-    knuckle: mergeGeometries([new THREE.SphereGeometry(0.036, 24, 16), new THREE.CylinderGeometry(0.023, 0.03, 0.05, 20).translate(0, 0.04, 0)]),
-    arm: new THREE.CylinderGeometry(0.019, 0.019, (Y0 - 0.15) - (CUP_TOP + 0.06), 20),
-    stem: hpLathe([[0.0001, -0.115], [0.02, -0.113], [0.029, -0.104], [0.032, -0.085], [0.032, 0.085], [0.029, 0.1], [0.02, 0.11], [0.0001, 0.112]], 28),
-    anchor: new RoundedBoxGeometry(0.05, 0.13, 0.17, 3, 0.022),
+    // микрофон — узкая щель на боковине
+    mic: new RoundedBoxGeometry(0.075, 0.012, 0.02, 2, 0.0095),
+    // гнездо шарнира в верхней точке чашки: стальное кольцо с тёмной серединой
+    pivot: mergeGeometries([hpLathe([[0.026, 0.0], [0.04, 0.0], [0.045, 0.006], [0.045, 0.012], [0.038, 0.016], [0.026, 0.016], [0.026, 0.0]], 40)]),
+    knuckle: mergeGeometries([new THREE.SphereGeometry(0.03, 24, 16), new THREE.CylinderGeometry(0.022, 0.027, 0.05, 20).translate(0, 0.035, 0)]),
+    arm: new THREE.CylinderGeometry(0.02, 0.02, (Y0 - 0.05) - (CUP_TOP + 0.03), 20),
+    // хромированная муфта на конце рамы
+    collar: hpLathe([[0.0001, -0.032], [0.04, -0.032], [0.049, -0.026], [0.051, -0.018], [0.051, 0.022], [0.047, 0.03], [0.0001, 0.03]], 36),
   };
-  const armMidY = ((Y0 - 0.15) + (CUP_TOP + 0.06)) / 2;
-  // Digital Crown — рифлёный цилиндр, ось вдоль Y, основание в 0
+  const armMidY = ((Y0 - 0.05) + (CUP_TOP + 0.03)) / 2;
+  // колёсико — рифлёный цилиндр, ось вдоль Y, основание в 0
   const crownGeo = (() => {
-    const R = 0.068, H = 0.062, T = 44, NP = T * 4, sh = new THREE.Shape();
+    const R = 0.072, H = 0.058, T = 48, NP = T * 4, sh = new THREE.Shape();
     for (let i = 0; i < NP; i++) {
-      const a = (i / NP) * Math.PI * 2, r = R * (1 - 0.05 * (0.5 + 0.5 * Math.cos(a * T)));
+      const a = (i / NP) * Math.PI * 2, r = R * (1 - 0.045 * (0.5 + 0.5 * Math.cos(a * T)));
       if (i) sh.lineTo(Math.cos(a) * r, Math.sin(a) * r); else sh.moveTo(Math.cos(a) * r, Math.sin(a) * r);
     }
     const g = new THREE.ExtrudeGeometry(sh, { depth: H, bevelEnabled: false, steps: 1, curveSegments: 1 });
     g.rotateX(-Math.PI / 2);
-    const top = new THREE.CylinderGeometry(R * 0.86, R * 0.93, 0.008, 48).translate(0, H + 0.004, 0).toNonIndexed();
+    const top = new THREE.CylinderGeometry(R * 0.86, R * 0.94, 0.008, 48).translate(0, H + 0.004, 0).toNonIndexed();
     return mergeGeometries([g, top]);
   })();
 
@@ -538,11 +594,10 @@ function createHeadphonesScene(canvas) {
     const sg = new THREE.Group(); if (side < 0) sg.rotation.y = Math.PI; root.add(sg);
     // правая чашка поворачивается на шарнире вокруг оси штанги
     const sw = side > 0 ? 'sw' : '';
-    // гильза рамы, телескопическая штанга, шаровой шарнир, крепление гамака
-    part(sg, G.stem, mat.steel, S + '.stem', S, m => m.position.set(HX, Y0 - 0.06, 0));
+    // муфта рамы, телескопическая штанга, шаровой шарнир
+    part(sg, G.collar, mat.steel, S + '.collar', S, m => m.position.set(HX, Y0 - 0.03, 0));
     part(sg, G.arm, mat.steel, S + '.arm', S, m => m.position.set(HX, armMidY, 0));
-    part(sg, G.anchor, mat.alu, S + '.anchor', S, m => m.position.set(HX - 0.035, Y0 + 0.07, 0));
-    part(sg, G.knuckle, mat.steel, S + '.knuckle', S + ' small cam ' + sw, m => m.position.set(HX, CUP_TOP + 0.035, 0));
+    part(sg, G.knuckle, mat.steel, S + '.knuckle', S + ' small cam ' + sw, m => m.position.set(HX, CUP_TOP + 0.022, 0));
     // чашка: локальная ось Y — наружу; X — вниз; Z — вперёд (для правой)
     const cf = new THREE.Group(); cf.position.set(SHELL_IN, CY, 0); cf.rotation.z = -Math.PI / 2; sg.add(cf);
     const ct = S + ' cup' + S + ' ' + sw + (side > 0 ? ' keep' : '');
@@ -550,16 +605,16 @@ function createHeadphonesScene(canvas) {
     const ctr = S + ' cup' + S + ' ' + sw;
     const shell = part(cf, G.shell, mat.alu, S + '.shell', ct + ' big');
     if (side < 0) {
-      const dg = new THREE.PlaneGeometry(0.8, 0.4);
-      dg.applyMatrix4(new THREE.Matrix4().makeBasis(new V3(0, 0, -1), new V3(-1, 0, 0), new V3(0, 1, 0)));
-      const d = new THREE.Mesh(dg, mat.logo); d.position.set(0, SD + 0.0135, 0); d.renderOrder = 2; d.name = 'logo'; shell.add(d);
-    } else {
-      part(cf, G.ring, mat.glow, 'R.ring', ct);
+      // гравировка flow на внешней грани левой чашки; UV по z зеркалим, иначе знак читается наоборот
+      const lg = G.logo.clone();
+      const uv = lg.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, 1 - uv.getX(i));
+      const d = new THREE.Mesh(lg, mat.logo); d.renderOrder = 2; d.name = 'logo'; shell.add(d);
     }
-    part(cf, G.padBase, mat.seam, S + '.padBase', ct);
+    part(cf, G.padBase, mat.seam, S + '.seam', ct);
     part(cf, G.pad, mat.knit, S + '.pad', ct + ' big');
     part(cf, G.padIn, side > 0 ? mat.padInR : mat.padInL, S + '.padIn', ct);
     part(cf, G.grille, mat.grille, S + '.grille', ct, m => m.position.set(0, 0.004, 0));
+    part(cf, G.carrier, mat.plastic, S + '.carrier', ct);
     part(cf, G.gasket, mat.plastic, S + '.gasket', ct + ' small', m => m.position.set(0, 0.03, 0));
     // драйвер
     const basketM = part(cf, G.basket, mat.basket, S + '.basket', ct + ' drv');
@@ -573,39 +628,41 @@ function createHeadphonesScene(canvas) {
     part(cf, G.coil, mat.copper, S + '.coil', ct + ' drv small cam', m => m.position.set(0, 0.14, 0));
     part(cf, G.plate, mat.plate, S + '.plate', ct + ' drv');
     part(cf, G.magnet, mat.magnet, S + '.magnet', ct + ' drv', m => m.position.set(0, 0.22, 0));
+    part(cf, G.damp, mat.foam, S + '.damp', ct + ' brd', m => m.position.set(0, 0.262, 0));
+    part(cf, G.flex, mat.kapton, S + '.flex', ct + ' brd small cam', m => m.position.set(0.02, 0.335, -0.02));
     for (let k = 0; k < 4; k++) {
       const a = k * Math.PI / 2 + Math.PI / 4;
-      part(cf, G.screw, mat.steel, S + '.screw' + k, ct + ' small cam', m => m.position.set(Math.cos(a) * 0.4, 0.012, Math.sin(a) * 0.36));
+      part(cf, G.screw, mat.steel, S + '.screw' + k, ct + ' small cam', m => m.position.set(Math.cos(a) * 0.42, 0.012, Math.sin(a) * 0.36));
     }
-    // шарнир на верхней кромке чашки
+    // гнездо шарнира в верхней точке чашки
     const jTop = hpRimAt(O, -1, 0);
-    part(cf, G.pivot, mat.alu, S + '.pivot', ctr + ' small', hpRim(O, jTop, SD / 2, 0.004));
+    part(cf, G.pivot, mat.steel, S + '.pivot', ctr + ' small', hpCupFrame(O, rFn, jTop, Y_STEM, -0.006));
     // микрофоны: верх-перед, перёд, низ-зад
-    [[-0.72, 0.7, 0.3], [0.2, 1, 0.24], [0.8, -0.6, 0.27]].forEach(([dx, dz, y], k) => {
-      part(cf, G.mic, mat.hole, S + '.mic' + k, ctr + ' small cam', hpRim(O, hpRimDir(O, dx, dz), y, -0.0035));
+    [[-0.7, 0.72, 0.12], [0.15, 1, 0.1], [0.82, -0.57, 0.11]].forEach(([dx, dz, y], k) => {
+      part(cf, G.mic, mat.hole, S + '.mic' + k, ctr + ' small cam', hpCupFrame(O, rFn, hpRimDir(O, dx, dz), y, -0.003));
     });
     if (side > 0) {
-      // Digital Crown (сзади) и вытянутая кнопка шумоподавления (спереди) на верхней кромке
-      const crown = part(cf, crownGeo, mat.alu, 'R.crown', ctr + ' small cam', hpRim(O, hpRimAt(O, -1, -0.235), SD / 2, -0.012));
-      const gr = new THREE.Mesh(new THREE.TorusGeometry(0.078, 0.0045, 8, 64).rotateX(Math.PI / 2), mat.glow);
-      gr.position.set(0, 0.014, 0); gr.name = 'crownGlow'; crown.add(gr);
+      // колёсико (сверху, ближе к задней кромке) и вытянутая кнопка (на передней кромке, вверху)
+      const crown = part(cf, crownGeo, mat.alu, 'R.crown', ctr + ' small cam', hpCupFrame(O, rFn, hpRimAt(O, -1, -0.25), Y_DET, -0.01));
+      const gr = new THREE.Mesh(new THREE.TorusGeometry(0.082, 0.0045, 8, 64).rotateX(Math.PI / 2), mat.glow);
+      gr.position.set(0, 0.016, 0); gr.name = 'crownGlow'; gr.visible = false; crown.add(gr);
       // две волны со сдвигом фазы — в любом кадре видно расходящийся пульс
-      const pg = new THREE.RingGeometry(0.086, 0.096, 72).rotateX(-Math.PI / 2);
+      const pg = new THREE.RingGeometry(0.09, 0.1, 72).rotateX(-Math.PI / 2);
       for (let k = 0; k < 2; k++) {
-        const pulse = new THREE.Mesh(pg, k ? mat.pulse2 : mat.pulse); pulse.position.set(0, 0.016, 0); pulse.renderOrder = 3; pulse.name = 'pulse' + k; crown.add(pulse);
+        const pulse = new THREE.Mesh(pg, k ? mat.pulse2 : mat.pulse); pulse.position.set(0, 0.018, 0); pulse.renderOrder = 3; pulse.name = 'pulse' + k; crown.add(pulse);
       }
-      part(cf, new RoundedBoxGeometry(0.15, 0.04, 0.05, 3, 0.019), mat.alu, 'R.button', ctr + ' small cam', hpRim(O, hpRimAt(O, -1, 0.215), SD / 2, 0.004));
-      // порт USB-C и индикатор снизу
+      part(cf, new RoundedBoxGeometry(0.2, 0.034, 0.05, 3, 0.016), mat.alu, 'R.button', ctr + ' small cam', hpCupFrame(O, rFn, hpRimDir(O, -0.62, 1), Y_DET, 0.002));
+      // порт и индикатор снизу
       const jBot = hpRimAt(O, 1, 0.08);
-      part(cf, new RoundedBoxGeometry(0.125, 0.03, 0.042, 3, 0.0145), mat.hole, 'R.usb', ctr + ' small', hpRim(O, jBot, SD / 2, -0.0135));
-      part(cf, new THREE.BoxGeometry(0.075, 0.004, 0.011), mat.gun, 'R.usbTongue', ctr + ' small cam', hpRim(O, jBot, SD / 2, 0.0005));
-      part(cf, new THREE.SphereGeometry(0.011, 12, 8), mat.led, 'R.led', ctr + ' small cam', hpRim(O, hpRimAt(O, 1, -0.11), SD / 2, -0.004));
+      part(cf, new RoundedBoxGeometry(0.125, 0.03, 0.042, 3, 0.0145), mat.hole, 'R.usb', ctr + ' small', hpCupFrame(O, rFn, jBot, Y_DET, -0.0135));
+      part(cf, new THREE.BoxGeometry(0.075, 0.004, 0.011), mat.gun, 'R.usbTongue', ctr + ' small cam', hpCupFrame(O, rFn, jBot, Y_DET, 0.0005));
+      part(cf, new THREE.SphereGeometry(0.009, 12, 8), mat.led, 'R.led', ctr + ' small cam', hpCupFrame(O, rFn, hpRimAt(O, 1, -0.12), Y_DET, -0.004));
       // плата с чипами
       part(cf, new RoundedBoxGeometry(0.46, 0.018, 0.3, 2, 0.008), mat.pcb, 'R.pcb', ct + ' brd', m => m.position.set(0, 0.29, 0));
       const chips = [[0.1, 0.085, 0.07, 0.03], [0.065, 0.065, -0.1, -0.05], [0.09, 0.05, -0.04, 0.09]];
       chips.forEach(([w, d, x, z], k) => part(cf, new RoundedBoxGeometry(w, 0.022, d, 2, 0.005), mat.chip, 'R.chip' + k, ct + ' brd small cam', m => m.position.set(x, 0.309, z)));
-      // съёмный кабель USB-C (в собранном виде спрятан)
-      const jf = new THREE.Group(); jf.applyMatrix4(hpRim(O, jBot, SD / 2, 0)); cf.add(jf);
+      // съёмный кабель (в собранном виде спрятан)
+      const jf = new THREE.Group(); jf.applyMatrix4(hpCupFrame(O, rFn, jBot, Y_DET, 0)); cf.add(jf);
       const plugTip = () => new RoundedBoxGeometry(0.118, 0.13, 0.034, 2, 0.016);
       const plugBody = () => new RoundedBoxGeometry(0.15, 0.2, 0.07, 3, 0.03);
       part(jf, plugTip(), mat.steel, 'C.tip', 'cable small', m => m.position.set(0, -0.065, 0));
@@ -619,7 +676,7 @@ function createHeadphonesScene(canvas) {
       part(jf, plugTip(), mat.steel, 'C.tip2', 'cable small', new THREE.Matrix4().compose(end.clone().addScaledVector(tan, 0.265), q, new V3(1, 1, 1)));
     } else {
       part(cf, new RoundedBoxGeometry(0.5, 0.07, 0.34, 3, 0.024), mat.battery, 'L.battery', ct + ' brd', m => m.position.set(0, 0.3, 0));
-      part(cf, new RoundedBoxGeometry(0.2, 0.014, 0.12, 2, 0.006), mat.pcb, 'L.bms', ct + ' brd small cam', m => m.position.set(0.05, 0.35, 0.06));
+      part(cf, new RoundedBoxGeometry(0.2, 0.014, 0.12, 2, 0.006), mat.pcb, 'L.bms', ct + ' brd small cam', m => m.position.set(0.05, 0.345, 0.04));
     }
     pivots[S] = new V3(HX, 0, 0);
   };
@@ -666,19 +723,19 @@ function createHeadphonesScene(canvas) {
 
   // параметры разлёта: «инженерный» разнос слоёв чашки вдоль её оси + псевдослучайный разброс
   const AXIAL = {
-    padIn: -0.78, pad: -0.62, padBase: -0.42, grille: -0.3, screw0: -0.22, screw1: -0.26, screw2: -0.18, screw3: -0.2, gasket: -0.12,
-    cap: 0.0, cone: 0.1, basket: 0.22, coil: 0.32, plate: 0.42, magnet: 0.52, pcb: 0.66, battery: 0.66, bms: 0.76, chip0: 0.8, chip1: 0.84, chip2: 0.78,
-    shell: 0.95, ring: 1.1, mic0: 0.95, mic1: 0.98, mic2: 0.92, crown: 1.0, button: 0.98, usb: 0.92, usbTongue: 0.98, led: 0.95,
-    pivot: 0.4, knuckle: 0.5, arm: 0.25, stem: 0.12, anchor: 0.05,
+    padIn: -0.78, pad: -0.62, seam: -0.44, grille: -0.3, screw0: -0.22, screw1: -0.26, screw2: -0.18, screw3: -0.2, carrier: -0.16, gasket: -0.1,
+    cap: 0.0, cone: 0.1, basket: 0.22, coil: 0.32, plate: 0.42, magnet: 0.52, damp: 0.6, pcb: 0.68, battery: 0.68, flex: 0.74, bms: 0.78, chip0: 0.82, chip1: 0.86, chip2: 0.8,
+    shell: 0.95, mic0: 0.95, mic1: 0.98, mic2: 0.92, crown: 1.0, button: 0.98, usb: 0.92, usbTongue: 0.98, led: 0.95,
+    pivot: 0.4, knuckle: 0.5, arm: 0.25, collar: 0.1,
   };
-  // штанги/гильзы поднимаются умеренно — выше не залезают на слово «ВНУТРИ» над объектом (гл. 8)
-  const UP = { pivot: 0.2, knuckle: 0.25, arm: 0.3, stem: 0.38, anchor: 0.42, crown: 0.25, button: 0.3, mic0: 0.25, mic1: -0.1, mic2: -0.3, usb: -0.3, usbTongue: -0.36, led: -0.3 };
+  // штанги/муфты поднимаются умеренно — выше не залезают на слово «ВНУТРИ» над объектом (гл. 8)
+  const UP = { pivot: 0.15, knuckle: 0.2, arm: 0.22, collar: 0.25, crown: 0.2, button: 0.22, mic0: 0.2, mic1: -0.1, mic2: -0.3, usb: -0.3, usbTongue: -0.36, led: -0.3 };
   // [доля пути к камере, доп. сдвиг по y, доп. сдвиг по x]
   // левая чашка — выше и левее центра низа, мимо пилюли счётчика глав
-  const FLY_BIG = { 'R.pad': [0.36, -0.55, 0.1], 'L.pad': [0.26, -0.3, 0.25], 'L.shell': [0.24, -0.12, -0.05] };
+  const FLY_BIG = { 'R.pad': [0.3, -0.4, 0.15], 'L.pad': [0.26, -0.3, 0.25], 'L.shell': [0.24, -0.12, -0.05] };
   parts.forEach((pt, i) => {
     pt.sw = has(pt, 'sw'); pt.cable = has(pt, 'cable'); pt.keep = has(pt, 'keep');
-    pt.inner = has(pt, 'drv') || has(pt, 'brd') || /screw|grille|gasket/.test(pt.name);
+    pt.inner = has(pt, 'drv') || has(pt, 'brd') || /screw|grille|gasket|carrier/.test(pt.name);
     const big = has(pt, 'big');
     const rnd = new V3(hpRand(i, 1) - 0.5, hpRand(i, 2) - 0.5, hpRand(i, 3) - 0.5).multiplyScalar(2);
     const out = pt.rp.clone(); out.y *= 0.8;
@@ -695,14 +752,14 @@ function createHeadphonesScene(canvas) {
       // объём: слои чашки расходятся не в одну «инженерную» линию, а вверх-вниз и по глубине
       ex.y += (hpRand(i, 17) - 0.5) * (big ? 0.9 : 0.6);
       ex.z += (hpRand(i, 18) - 0.5) * (big ? 0.8 : 0.6);
-      // потолок разлёта: детали не поднимаются выше верха дуги в сборе
-      ex.y = Math.min(ex.y, 0.95 - pt.rp.y);
+      // потолок разлёта: детали не поднимаются выше середины дуги в сборе (над ней — слово главы)
+      ex.y = Math.min(ex.y, 0.7 - pt.rp.y);
     } else if (pt.cable) {
       ex.set(1.2, -0.55, 0.35).addScaledVector(rnd, 0.25);
     } else {
-      // оголовье: рама уходит назад и чуть вниз, гамак — вперёд и вниз; вверх не летят —
+      // оголовье: рама уходит назад и вниз, гамак — вперёд и вниз; вверх не летят —
       // над объектом крупное слово «ВНУТРИ» (гл. 8), разлёт не должен его перекрывать
-      if (pt.name === 'band') ex.set(0, -0.28, -0.7); else ex.set(0, -0.14, 0.25);
+      if (pt.name === 'band') ex.set(0, -0.42, -0.75); else ex.set(0, -0.3, 0.28);
       ex.addScaledVector(rnd, 0.06);
     }
     pt.ex = ex;
@@ -720,7 +777,7 @@ function createHeadphonesScene(canvas) {
     pt.wsc = new V3(0.6 + 2.6 * hpRand(i, 14), (hpRand(i, 15) - 0.5) * 3.6, -(6 + 8 * hpRand(i, 16)));
   });
   // тонкие детали летят приклеенными к своему «носителю», а не отдельными волосками в воздухе
-  const FOLLOW = { 'R.ring': 'R.shell' };
+  const FOLLOW = { piping: 'canopy' };
   for (const n in FOLLOW) {
     const pt = byName[n], ld = byName[FOLLOW[n]];
     if (!pt || !ld) continue;
@@ -760,26 +817,27 @@ function createHeadphonesScene(canvas) {
 
   // ---------- ключевые позы глав ----------
   // sx, sy — NDC точки фокуса; z — глубина фокуса; s — масштаб; rx, ry, rz — градусы (YXZ)
-  // e — разлёт, aw — «уход за кадр», h1/h2 — герои, sw — поворот правой чашки (0..1 = 0..90°), cb — кабель, tc — пульс Digital Crown, iso — финал
+  // e — разлёт, aw — «уход за кадр», h1/h2 — герои, sw — поворот правой чашки (0..1 = 0..90°), cb — кабель, tc — пульс колёсика, iso — финал
   // px — дополнительный наклон вокруг мировой оси X (взгляд сверху/снизу), fs — фокус вращается вместе с правой чашкой
+  // lg — гравировка flow ловит тёплый блик (гл. 2)
   const KEYS = [
     { f: 'center', sx: 1.45, sy: -0.25, z: -1, s: 0.0001, rx: 20, ry: -80, rz: -25 },
     // ls/lsy — масштаб и высота для низкого альбомного экрана (телефон боком): пин «Flow · наушники» под объектом
-    { f: 'center', sx: 0.37, sy: -0.08, z: 0, s: 1.0, rx: 8, ry: 38, rz: -3, msy: 0.24, ms: 0.56, ls: 0.88, lsy: -0.04 },
+    { f: 'center', sx: 0.37, sy: -0.08, z: 0, s: 1.0, rx: 8, ry: 38, rz: -3, msy: 0.24, ms: 0.62, ls: 0.88, lsy: -0.04 },
     // низ чашки выше счётчика глав (~820 px из 900)
-    { f: 'cupL', sx: -0.05, sy: -0.13, z: 6.3, s: 1, rx: 6, ry: 68, rz: -6, msx: 0, msy: 0.4, ms: 0.8 },
+    { f: 'cupL', sx: -0.05, sy: -0.13, z: 6.3, s: 1, rx: 6, ry: 68, rz: -6, lg: 1, msx: 0, msy: 0.15, ms: 0.78, mz: 0 },
     // левее рейки точек справа
-    { f: 'padR', sx: 0.15, sy: -0.4, z: 5.85, s: 1, rx: 0, ry: -148, rz: -10, px: 8, sw: -1, msx: 0.05, msy: 0.38, ms: 0.75 },
-    // вид сверху-сбоку на Digital Crown: внешняя грань правой чашки к камере, Crown — справа сверху на кромке,
-    // дальняя чашка и дуга уходят влево-вверх — справа над Crown пусто, пин «Колёсико и кнопка» не ложится на объект
+    { f: 'padR', sx: 0.15, sy: -0.4, z: 5.85, s: 1, rx: 0, ry: -148, rz: -10, px: 8, sw: -1, msx: -0.02, msy: 0.1, ms: 0.74, mf: 'center', mz: 0 },
+    // вид сверху-сбоку на колёсико: внешняя грань правой чашки к камере, колёсико — справа сверху на кромке,
+    // дальняя чашка и дуга уходят влево-вверх — справа над колёсиком пусто, пин «Колёсико и кнопка» не ложится на объект
     { f: 'touch', sx: 0.36, sy: -0.25, z: 2.6, s: 1, rx: 0, ry: -62, rz: 4, px: 38, tc: 1, msx: 0, msy: 0.2, ms: 0.64 },
     // меньше — между плашкой кода комнаты и чашкой остаётся воздух
     { f: 'center', sx: 0.36, sy: -0.14, z: 0.4, s: 0.8, rx: 12, ry: -112, rz: 6, sw: 0.55, msy: 0.26, ms: 0.75 },
     // орбита источников: объект целиком внутри кольца чипов (чипы — по диагоналям вокруг центра модели),
     // поэтому на десктопе он меньше и по центру орбиты; на мобилке — прежний кадр (mf/mz)
-    { f: 'center', sx: 0.29, sy: 0, z: 0, s: 0.76, rx: 0, ry: -30, rz: 0, px: 4, sw: 1.33, gr: 1, msx: 0, msy: 0.4, ms: 0.8 / 0.76, mf: 'padR', mz: 1.15 },
-    { f: 'jack', sx: 0.3, sy: -0.02, z: 2.4, s: 1, rx: -6, ry: -140, rz: 4, px: -30, cb: 1, msx: 0, msy: 0.5, ms: 0.8 },
-    { f: 'center', sx: 0.31, sy: -0.04, z: 0, s: 0.92, rx: 14, ry: 22, rz: -6, e: 1, msx: 0.08, msy: 0.24, ms: 0.4 },
+    { f: 'center', sx: 0.29, sy: 0, z: 0, s: 0.76, rx: 0, ry: -30, rz: 0, px: 4, sw: 1.33, gr: 1, msx: 0, msy: 0.3, ms: 0.95, mz: 0 },
+    { f: 'jack', sx: 0.3, sy: -0.02, z: 2.4, s: 1, rx: -6, ry: -140, rz: 4, px: -30, cb: 1, msx: -0.04, msy: 0.2, ms: 0.72, mf: 'center', mz: 0 },
+    { f: 'center', sx: 0.31, sy: -0.1, z: 0, s: 0.92, rx: 14, ry: 22, rz: -6, e: 1, msx: 0.06, msy: 0.2, ms: 0.46, ls: 0.82, lsy: -0.12 },
     { f: 'center', sx: 0.31, sy: -0.02, z: 0, s: 0.92, rx: 16, ry: 40, rz: -6, e: 1, aw: 1, h1: 1 },
     { f: 'center', sx: 0.31, sy: -0.02, z: 0, s: 0.92, rx: 14, ry: 32, rz: -4, e: 1, aw: 0.55, h2: 1 },
     { f: 'center', sx: 0.34, sy: -0.1, z: 0, s: 0.95, rx: 12, ry: 22, rz: -3, e: 0.45, msy: 0.24, ms: 0.44 },
@@ -791,7 +849,7 @@ function createHeadphonesScene(canvas) {
     2: { sx: 0.34, sy: -0.02, z: 1, s: 2.7, msx: 0, msy: 0.42, ms: 1.5 },
   };
   const SWF = { padR: 1, cupR: 1 };
-  const NUMS = ['sx', 'sy', 'z', 's', 'rx', 'ry', 'rz', 'px', 'fs', 'e', 'aw', 'h1', 'h2', 'sw', 'cb', 'tc', 'gr', 'iso'];
+  const NUMS = ['sx', 'sy', 'z', 's', 'rx', 'ry', 'rz', 'px', 'fs', 'e', 'aw', 'h1', 'h2', 'sw', 'cb', 'tc', 'gr', 'iso', 'lg'];
 
   let W = 1, H = 1, aspect = 1;
   let finaleRect = null;
@@ -810,6 +868,10 @@ function createHeadphonesScene(canvas) {
       out.sx = k.msx !== undefined ? k.msx : 0;
       out.sy = k.msy !== undefined ? k.msy : 0.42;
       out.s = k.s * (k.ms !== undefined ? k.ms : 0.62);
+      // позы мобилки подобраны под 390x844; на телефонах ниже карточка занимает бо́льшую долю экрана —
+      // объект чуть меньше и выше, чтобы не залезать на карточку
+      const fH = Math.min(1, Math.max(0.82, (H - 300) / 544));
+      out.s *= fH; out.sy += (1 - fH) * 0.5;
       out.z = k.mz !== undefined ? k.mz : (k.z || 0) * 0.5;
       // своя точка фокуса для мобильной раскладки
       if (k.mf) { out.fs = SWF[k.mf] || 0; out.fv.copy(FOCI[k.mf]); }
@@ -829,7 +891,7 @@ function createHeadphonesScene(canvas) {
     const target = new V3(nx * TAN * dist * aspect, ny * TAN * dist, 0);
     const d = camera.position.clone().sub(target).normalize();
     out.sx = nx; out.sy = ny; out.z = 0;
-    // чашка-стадион вписывается в «o» по высоте
+    // чашка вписывается в «o» по высоте
     out.s = (r.size / H) * TAN * dist / CB;
     out.rx = 0; out.ry = Math.atan2(-d.z, d.x) / DEG; out.rz = Math.asin(d.y) / DEG;
     out.iso = 1;
@@ -844,7 +906,7 @@ function createHeadphonesScene(canvas) {
   const clock = new THREE.Clock();
   // time стартует не с нуля: при выключенном движении (тест, reduced-motion) кадр «пульса» читается
   let time = 0.6, raf = 0, disposed = false, motion = true;
-  let lastPointerAt = -10, frameNo = 0, prCap = 1.5;
+  let lastPointerAt = -10, frameNo = 0, prCap = PR_MAX;
   // адаптивное качество: окна по 30 кадров, медиана dt (единичный фриз не решает), понижение —
   // только после 2 медленных окон подряд. Не меряем первые 3 с, после первого появления модели,
   // ресайза и возврата во вкладку. Ровные 30 fps (энергосбережение) перегрузкой не считаем.
@@ -866,6 +928,7 @@ function createHeadphonesScene(canvas) {
   const hE = new THREE.Euler(), hQ = new Q();
   const crownM = byName['R.crown'].mesh;
   const pulses = [0, 1].map(k => crownM.getObjectByName('pulse' + k));
+  const crownGlowM = crownM.getObjectByName('crownGlow');
   const rimGlowM = byName['R.basket'].mesh.getObjectByName('rimGlow');
   const lq = new Q();
 
@@ -914,7 +977,8 @@ function createHeadphonesScene(canvas) {
     const cbGrow = Math.max(hpSmooth(0, 0.5, P.cb), P.e);
     const cbSlide = 0.2 * hpSmooth(0.35, 1, P.cb) * (1 - P.e);
     const aw = P.aw;
-    const mobNow = isMob(), exK = mobNow ? 0.62 : 1, flyK = mobNow ? 0.5 : 1;
+    // телефон боком (низкий экран): разлёт тоже поджимаем — слева карточка, снизу край
+    const mobNow = isMob(), lowH = !mobNow && H < 480, exK = mobNow ? 0.62 : lowH ? 0.8 : 1, flyK = mobNow || lowH ? 0.5 : 1;
 
     // мировые кадры «героев»
     for (const hk of [1, 2]) {
@@ -995,11 +1059,13 @@ function createHeadphonesScene(canvas) {
     mat.basket.emissiveIntensity = P.h1 * 0.14;
     mat.rimGlow.emissiveIntensity = P.h1 * 1.0;
     rimGlowM.visible = P.h1 > 0.02;
-    mat.padInR.emissiveIntensity = P.gr * 0.06;
+    mat.padInR.emissiveIntensity = P.gr * 0.05;
+    mat.logo.emissiveIntensity = P.lg * 0.12;
     const tc = P.tc;
-    // контур на правой чашке: тихий в главах, ярче в финале и на касании
-    mat.glow.emissiveIntensity = 0.55 + 0.6 * P.iso + tc * (0.6 + 0.5 * Math.sin(time * 5));
-    // волна-касание расходится от Digital Crown; ребром к камере волну гасим — иначе висит дугой
+    // тёплое кольцо вокруг колёсика — только в главе касания
+    crownGlowM.visible = tc > 0.02;
+    mat.glow.emissiveIntensity = tc * (0.9 + 0.5 * Math.sin(time * 5));
+    // волна-касание расходится от колёсика; ребром к камере волну гасим — иначе висит дугой
     let face = 0;
     if (tc > 0.02) {
       tmp.v.set(0, 1, 0).applyQuaternion(crownM.quaternion);
@@ -1043,7 +1109,7 @@ function createHeadphonesScene(canvas) {
     } else if (prRaises < 1 && dpr > 1 && now - prDropAt > 10000) {
       if (med < 0.0175 && spread < 0.004) {
         if (!fastSince) fastSince = now;
-        else if (now - fastSince > 8000) { prRaises++; prCap = 1.5; resize(); }
+        else if (now - fastSince > 8000) { prRaises++; prCap = PR_MAX; resize(); }
       } else fastSince = 0;
     }
   }
@@ -1089,7 +1155,8 @@ function createHeadphonesScene(canvas) {
   frame();
   {
     let tris = 0;
-    parts.forEach(p => { const g = p.mesh.geometry; tris += (g.index ? g.index.count : g.attributes.position.count) / 3; });
+    const cnt = (g) => (g.index ? g.index.count : g.attributes.position.count) / 3;
+    parts.forEach(p => { tris += cnt(p.mesh.geometry); p.mesh.children.forEach(c => { if (c.geometry) tris += cnt(c.geometry); }); });
     console.info('[flow] headphones: ' + parts.length + ' parts, ~' + Math.round(tris / 1000) + 'k tris');
   }
 
@@ -1155,7 +1222,7 @@ function createHeadphonesScene(canvas) {
       parts.forEach(pt => { geos.add(pt.mesh.geometry); pt.mesh.children.forEach(c => c.geometry && geos.add(c.geometry)); });
       geos.forEach(g => g.dispose());
       Object.values(mat).forEach(m => m.dispose());
-      [plateTex, coneTex, grilleTex, pcbTex, logoTex, knitPad, knitIn, meshN, meshA, sideTex.R, sideTex.L].forEach(t => t.dispose());
+      [plateTex, coneTex, grilleTex, pcbTex, logoTex, knitPad, knitCol, knitIn, meshN, meshC, sideTex.R, sideTex.L].forEach(t => t.dispose());
       room.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
       envRT.dispose();
       renderer.dispose();

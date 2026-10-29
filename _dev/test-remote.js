@@ -127,11 +127,12 @@ function checkSnapshot(label, s) {
     for (const h of hooks.downloads) if (!h.startsWith('https://flowww.space')) fail('ссылки', `download ведёт на ${h}`);
 
     const fonts = await page.evaluate(async () => {
-      const probe = [['Unbounded', 'Ж'], ['Onest', 'Ж'], ['Syne', 'f']];
+      // [семейство, начертание, проверочный глиф]: кириллица у Unbounded/Onest/Playfair, у Syne нужна только латиница
+      const probe = [['Unbounded', '700', 'Ж'], ['Onest', '700', 'Ж'], ['Syne', '700', 'f'], ['Playfair Display', 'italic 500', 'Ж']];
       const res = {};
-      for (const [f, ch] of probe) {
-        try { await document.fonts.load(`700 32px "${f}"`, ch); } catch {}
-        res[f] = document.fonts.check(`700 32px "${f}"`, ch);
+      for (const [f, st, ch] of probe) {
+        try { await document.fonts.load(`${st} 32px "${f}"`, ch); } catch {}
+        res[f] = document.fonts.check(`${st} 32px "${f}"`, ch);
       }
       return res;
     });
@@ -255,7 +256,49 @@ function checkSnapshot(label, s) {
       }
       if (s.scrollY >= s.maxScroll - 2) break;
     }
+    // 6б. Мобилка: зоны нажатия и меню (открыть → перейти по пункту → закрылось; открыть → тап мимо → закрылось)
+    if (hooks.flow) {
+      await page.evaluate(() => window.__flow.goTo(3, { instant: true }));
+      await sleep(1500);
+      const small = await page.evaluate(() => [...document.querySelectorAll('a, button')].filter((el) => {
+        const cs = getComputedStyle(el), r = el.getBoundingClientRect();
+        let o = 1; for (let n = el; n && n.nodeType === 1; n = n.parentElement) o *= parseFloat(getComputedStyle(n).opacity) || 0;
+        return cs.display !== 'none' && cs.visibility !== 'hidden' && o > 0.5 && r.width > 0 && r.bottom > 0 && r.top < innerHeight && (r.height < 40 || r.width < 40);
+      }).map((el) => `${el.className || el.tagName} «${el.textContent.trim().slice(0, 20)}» ${Math.round(el.getBoundingClientRect().width)}x${Math.round(el.getBoundingClientRect().height)}`));
+      for (const s of small) warn('mobile: зона нажатия < 40px', s);
+      const menuState = () => page.evaluate(() => {
+        const m = document.getElementById('menu'), l = document.querySelector('.menu-list');
+        return { open: m.classList.contains('is-open'), visible: getComputedStyle(l).visibility !== 'hidden' && parseFloat(getComputedStyle(l).opacity) > 0.5 };
+      });
+      await page.click('.menu-toggle');
+      await sleep(700);
+      let ms = await menuState();
+      if (!ms.open || !ms.visible) fail('mobile-меню', `после тапа по «Меню» список не открылся (${JSON.stringify(ms)})`);
+      await page.screenshot({ path: path.join(OUT, 'mobile_menu_open.jpg'), type: 'jpeg', quality: 75 });
+      await page.click('.menu-list [data-chapter="8"]').catch((e) => fail('mobile-меню', 'пункт 8: ' + e.message));
+      await sleep(3500);
+      ms = await menuState();
+      const st = await page.evaluate(() => window.__flow.state());
+      if (st.chapter !== 8) fail('mobile-меню', `пункт «Внутри Flow» привёл в главу ${st.chapter}`);
+      if (ms.open) fail('mobile-меню', 'после перехода по пункту меню список остался открытым');
+      await page.click('.menu-toggle');
+      await sleep(600);
+      await page.mouse.click(195, 420);
+      await sleep(600);
+      ms = await menuState();
+      if (ms.open) fail('mobile-меню', 'тап мимо меню не закрыл список');
+      checkSnapshot('mobile-после меню', await snapshot(page));
+    }
     await page.close();
+
+    // 6в. Маленький Android 360x780 и планшет 820x1180: раскладка без переполнений и горизонтального скролла
+    for (const [w, h] of [[360, 780], [820, 1180]]) {
+      for (const n of [1, 4, 12]) {
+        page = await openPage(browser, { w, h, mobile: true, query: 'ch=' + n, label: `${w}x${h} ?ch=${n}` });
+        checkSnapshot(`${w}x${h} ?ch=${n}`, await snapshot(page));
+        await page.close();
+      }
+    }
 
     // 7. prefers-reduced-motion
     page = await openPage(browser, { w: 1600, h: 900, reduced: true, query: 'ch=6', label: 'reduced-motion' });

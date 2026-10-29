@@ -1,37 +1,49 @@
-/* ================= Flow — A study in sound · стиль flowww.space ================= */
+/* ================= Flow — A study in sound · «Закат»: свет референса EOS 60D на тёмной базе flowww.space ================= */
 :root {
   --bg: #09080e;
   --bg-subtle: #110e1a;
   --surface: rgba(255, 255, 255, .04);
-  --surface-card: #14111f;
-  --card: rgba(20, 17, 31, .85);
-  --card-line: rgba(255, 255, 255, .16);
+  --surface-card: #160f1f;
+  /* тёмное стекло: сквозь карточку видно тёплое сияние за объектом */
+  --card: rgba(20, 14, 28, .58);
+  --card-solid: rgba(20, 14, 28, .94);
+  --card-line: rgba(255, 255, 255, .12);
   --line: rgba(255, 255, 255, .08);
   --line-2: rgba(255, 255, 255, .12);
   --text: #f8fafc;
-  --muted: #9ba1b5;
-  --dim: #656b82;
+  --muted: #b9b3c9;
+  --dim: #7a7290;
+  /* акцент 1 — бренд: кнопки, активные точки, рейка */
   --accent: #9d6fff;
   --accent-light: #c4a1ff;
   --accent-glow: rgba(157, 111, 255, .45);
-  --violet: #8b5cf6;
-  --cyan: #38bdf8;
-  --peach: #fb923c;
-  --emerald: #34d399;
-  --pink: #f43f5e;
+  --violet: #7c3aed;
+  /* акцент 2 — тёплый (вместо бирюзы референса): пины, цифры-факты, «живые» точки, свечение */
+  --warm: #ffa04d;
+  --warm-2: #fb923c;
+  --warm-glow: rgba(255, 160, 77, .5);
+  --cream: #ffd9b8;
+  --rose: #e0457b;
+  --pink: #f472b6;
   --grad-btn: linear-gradient(135deg, #a855f7, #7c3aed);
-  --grad-text: linear-gradient(135deg, #fff 30%, #c4b5fd 75%, #a78bfa);
-  /* гигантские слова: вертикальный градиент — у всех букв одинаковый, читается как один градиент на слово */
-  --grad-giant: linear-gradient(176deg, #fff 14%, #ebe3ff 42%, #c4b5fd 70%, #a78bfa 100%);
-  /* свечения фона (как размытые пятна flowww.space, только дешевле — радиальными градиентами) */
+  --grad-warm: linear-gradient(135deg, #ffe6cf 0%, #ffc28a 45%, #ffa04d 100%);
+  /* гигантские слова: вертикальный градиент «белый → кремовый → лаванда» — свет сверху тёплый, низ уходит в бренд */
+  --grad-giant: linear-gradient(176deg, #fff 12%, #ffeede 34%, #ffd9b8 52%, #e2c6ff 76%, #c4a1ff 100%);
+  --giant-glow: rgba(255, 140, 96, .34);
+  /* края экрана: слабые фиолетово-розовые пятна; тёплое сияние за объектом — отдельный слой .sun */
   --glows:
-    radial-gradient(34% 46% at 67% 47%, rgba(139, 92, 246, .40) 0%, rgba(139, 92, 246, .15) 45%, rgba(139, 92, 246, 0) 76%),
-    radial-gradient(32% 40% at 12% 6%, rgba(99, 102, 241, .17), rgba(99, 102, 241, 0) 72%),
-    radial-gradient(36% 44% at 97% 98%, rgba(6, 182, 212, .15), rgba(6, 182, 212, 0) 72%),
-    radial-gradient(32% 38% at 4% 94%, rgba(236, 72, 153, .10), rgba(236, 72, 153, 0) 72%);
+    radial-gradient(34% 42% at 10% 4%, rgba(124, 58, 237, .16), rgba(124, 58, 237, 0) 72%),
+    radial-gradient(36% 44% at 98% 100%, rgba(157, 111, 255, .12), rgba(157, 111, 255, 0) 72%),
+    radial-gradient(32% 38% at 2% 96%, rgba(224, 69, 123, .11), rgba(224, 69, 123, 0) 72%);
+  /* сияние «Закат»: ядро #ffb35c → #ff7a2f → малиновый → фиолет → почти чёрный (тёплое ядро ~60vmin) */
+  --sun:
+    radial-gradient(closest-side, rgba(255, 179, 92, .95) 0%, rgba(255, 122, 47, .82) 15%, rgba(224, 69, 123, .52) 36%,
+      rgba(124, 58, 237, .27) 56%, rgba(124, 58, 237, .09) 76%, rgba(124, 58, 237, 0) 100%);
   --f-logo: "Syne", "Onest", system-ui, sans-serif;
   --f-display: "Unbounded", "Onest", system-ui, sans-serif;
+  --f-serif: "Playfair Display", Georgia, "Times New Roman", serif;
   --f-ui: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --title-fs: 32px;
   --side: clamp(20px, 4vw, 72px);
   --card-w: clamp(360px, 26.25vw, 470px);
   --card-top: clamp(100px, 13.5vh, 150px);
@@ -56,7 +68,7 @@ body {
 a { color: inherit; text-decoration: none; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-::selection { background: rgba(157, 111, 255, .35); color: #fff; }
+::selection { background: rgba(255, 160, 77, .35); color: #fff; }
 
 /* ---------- трек прокрутки ---------- */
 .track { position: relative; z-index: 0; pointer-events: none; }
@@ -70,10 +82,16 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .bg::before { content: ""; position: absolute; inset: 0; background: var(--glows); }
 .bg::after {
   content: ""; position: absolute; inset: 0;
-  background: radial-gradient(120% 120% at 55% 45%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, .45) 100%);
+  background: radial-gradient(120% 120% at 55% 45%, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, .5) 100%);
+}
+/* тёплое сияние за объектом: круг 160vmin, центр двигает app.js по якорю center (только transform) */
+.sun {
+  position: absolute; left: 0; top: 0; width: 160vmin; height: 160vmin; margin: -80vmin 0 0 -80vmin;
+  border-radius: 50%; background: var(--sun); pointer-events: none;
+  transform: translate3d(67vw, 52vh, 0); will-change: transform;
 }
 .grain {
-  position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: .035;
+  position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: .05;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.5 -.35'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 220px 220px;
 }
@@ -88,7 +106,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   font-family: var(--f-display); font-weight: 800; text-transform: uppercase;
   font-size: min(7.4vw, 14vh); line-height: .95; letter-spacing: -.04em;
   color: var(--text);
-  filter: drop-shadow(0 0 .2em rgba(139, 92, 246, .55));
+  filter: drop-shadow(0 0 .2em var(--giant-glow));
   transition: filter .35s ease-out;
   visibility: hidden;
 }
@@ -105,7 +123,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 /* пока буквы выезжают из-под маски, свечение гасим: прямой край clip-path резал бы его ступенькой */
 /* гаснет мгновенно (маска включается в тот же кадр), разгорается плавно */
-.giant-word.is-moving, .peek-word.is-moving { filter: drop-shadow(0 0 .2em rgba(139, 92, 246, 0)); transition: none; }
+.giant-word.is-moving, .peek-word.is-moving { filter: drop-shadow(0 0 .2em rgba(255, 140, 96, 0)); transition: none; }
 .giant-word .gl-space { width: .3em; }
 /* гл. 8: слово чуть выше остальных гигантских — разлетающиеся детали и дуга оголовья его не задевают */
 .giant-word[data-ch="8"] { top: 12.5vh; }
@@ -115,7 +133,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   position: absolute; left: 30vw; right: 0; top: 12vh; text-align: center;
   font-family: var(--f-logo); font-weight: 800; font-size: min(17vw, 31vh); line-height: 1;
   letter-spacing: -.045em; white-space: nowrap;
-  filter: drop-shadow(0 0 .14em rgba(139, 92, 246, .5));
+  filter: drop-shadow(0 0 .14em var(--giant-glow));
   transition: filter .35s ease-out;
   visibility: hidden;
 }
@@ -126,12 +144,12 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   font-family: var(--f-logo); font-weight: 800; line-height: 1; white-space: nowrap;
   font-size: min(25vw, 56vh); letter-spacing: -.045em; color: var(--text);
   transform: translateY(-3vh);
-  filter: drop-shadow(0 0 .07em rgba(139, 92, 246, .5));
+  filter: drop-shadow(0 0 .07em var(--giant-glow));
 }
 /* «o» у Syne 800 — широкий овал, а чашка круглая: соседние буквы подтягиваем к ней (measureFinale учитывает margin) */
 .fl-hole { color: transparent; display: inline-block; margin: 0 -.13em; }
 .fl-baseline { display: inline-block; width: 0; height: 0; vertical-align: baseline; }
-.no-3d .fl-hole { color: transparent; -webkit-text-stroke: .012em rgba(196, 161, 255, .6); }
+.no-3d .fl-hole { color: transparent; -webkit-text-stroke: .012em rgba(255, 217, 184, .6); }
 /* призыв под финальным словом — только на телефоне в портрете (см. адаптив) */
 .finale-cta { display: none; }
 
@@ -143,16 +161,17 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .pin {
   display: flex; align-items: center; gap: 10px;
   padding: 6px 16px 6px 6px; border-radius: 999px;
-  background: rgba(20, 17, 31, .8); border: 1px solid var(--card-line);
-  backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(14px) saturate(1.3);
-  box-shadow: 0 12px 34px -10px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .06);
+  background: rgba(20, 14, 28, .72); border: 1px solid var(--card-line);
+  backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow: 0 12px 34px -10px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 217, 184, .12);
   margin: -17px 0 0 -17px; white-space: nowrap;
 }
+/* «+» пина — тёплый акцент (в референсе бирюзовый) */
 .pin-plus {
   width: 22px; height: 22px; border-radius: 50%; flex: none;
   display: grid; place-items: center; font: 600 15px/1 var(--f-ui);
-  color: #fff; background: var(--grad-btn);
-  box-shadow: 0 0 0 5px rgba(157, 111, 255, .16), 0 0 14px rgba(157, 111, 255, .6);
+  color: #2a1206; background: var(--grad-warm);
+  box-shadow: 0 0 0 5px rgba(255, 160, 77, .16), 0 0 14px rgba(255, 160, 77, .65);
 }
 .pin-text { display: flex; flex-direction: column; gap: 3px; }
 .pin-text b { font: 600 12.5px/1.1 var(--f-ui); color: var(--text); }
@@ -161,16 +180,16 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .room-panel {
   width: 236px; padding: 14px 16px 14px; border-radius: 20px;
   background: var(--card); border: 1px solid var(--card-line);
-  backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3);
-  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .7), 0 0 40px -10px rgba(139, 92, 246, .35), inset 0 1px 0 rgba(255, 255, 255, .06);
+  backdrop-filter: blur(18px) saturate(1.4); -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .7), 0 0 40px -12px rgba(255, 140, 96, .3), inset 0 1px 0 rgba(255, 217, 184, .14);
 }
 .rp-head { display: flex; align-items: center; gap: 8px; font: 600 10px/1 var(--f-ui); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
-.rp-code { display: flex; gap: 12px; margin: 11px 0 12px; font: 700 34px/1 var(--f-display); letter-spacing: -.02em; color: var(--text); text-shadow: 0 0 24px rgba(157, 111, 255, .55); }
+.rp-code { display: flex; gap: 12px; margin: 11px 0 12px; font: 700 34px/1 var(--f-display); letter-spacing: -.02em; color: var(--text); text-shadow: 0 0 24px rgba(255, 160, 77, .5); }
 .rp-code span { position: relative; }
 .rp-foot { display: flex; gap: 6px; }
 .rp-tag { font: 600 10px/1 var(--f-ui); letter-spacing: .1em; text-transform: uppercase; padding: 7px 10px; border-radius: 999px; background: rgba(168, 85, 247, .14); color: var(--accent-light); border: 1px solid rgba(168, 85, 247, .32); }
 .rp-tag--ghost { background: rgba(255, 255, 255, .04); color: var(--muted); border-color: var(--line-2); }
-.live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--emerald); box-shadow: 0 0 0 3px rgba(52, 211, 153, .18), 0 0 8px var(--emerald); flex: none; }
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warm); box-shadow: 0 0 0 3px rgba(255, 160, 77, .18), 0 0 8px var(--warm); flex: none; }
 
 .orbit { width: 0; height: 0; }
 .chip {
@@ -178,9 +197,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   display: inline-flex; align-items: center; gap: 8px;
   padding: 9px 14px 9px 10px; border-radius: 999px;
   font: 500 12.5px/1 var(--f-ui); color: var(--text);
-  background: rgba(20, 17, 31, .8); border: 1px solid var(--card-line);
-  backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(14px) saturate(1.3);
-  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .06);
+  background: rgba(20, 14, 28, .72); border: 1px solid var(--card-line);
+  backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 217, 184, .12);
   will-change: transform, opacity;
 }
 .chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
@@ -188,19 +207,19 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .chip--l::after, .chip--r::after {
   content: ""; position: absolute; top: 50%; width: 22px; height: 1px; margin-top: -.5px; pointer-events: none;
 }
-.chip--r::after { right: 100%; background: linear-gradient(270deg, rgba(196, 161, 255, .55), rgba(196, 161, 255, 0)); }
-.chip--l::after { left: 100%; background: linear-gradient(90deg, rgba(196, 161, 255, .55), rgba(196, 161, 255, 0)); }
+.chip--r::after { right: 100%; background: linear-gradient(270deg, rgba(255, 200, 150, .6), rgba(255, 200, 150, 0)); }
+.chip--l::after { left: 100%; background: linear-gradient(90deg, rgba(255, 200, 150, .6), rgba(255, 200, 150, 0)); }
 
-/* выноска от точки детали к подписи: линия от кольца-точки, градиент к «+» */
+/* выноска от точки детали к подписи: тёплая линия от кольца-точки к «+» */
 .pin-lead {
   position: absolute; left: 0; top: 0; height: 1px; margin-top: -.5px; visibility: hidden; pointer-events: none;
   transform-origin: 0 50%; will-change: transform, opacity;
-  background: linear-gradient(90deg, rgba(196, 161, 255, .25), rgba(196, 161, 255, .85));
+  background: linear-gradient(90deg, rgba(255, 190, 130, .3), rgba(255, 190, 130, .9));
 }
 .pin-lead::before {
   content: ""; position: absolute; left: -5px; top: -4.5px; width: 10px; height: 10px; border-radius: 50%;
-  border: 1.5px solid var(--accent-light); background: rgba(157, 111, 255, .35);
-  box-shadow: 0 0 10px rgba(157, 111, 255, .9);
+  border: 1.5px solid var(--cream); background: rgba(255, 160, 77, .4);
+  box-shadow: 0 0 10px rgba(255, 160, 77, .9);
 }
 
 /* ---------- карточки ---------- */
@@ -213,19 +232,22 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 .card-wrap .card, .card-wrap .media > * { will-change: opacity; }
 .card-wrap.is-live { pointer-events: auto; }
+/* тёмное стекло референса: сквозь карточку просвечивает сияние, сверху тёплый блик */
 .card {
-  position: relative; padding: 24px 26px 18px; border-radius: 24px;
+  position: relative; padding: 24px 26px 18px; border-radius: 22px;
   background: var(--card);
   border: 1px solid var(--card-line);
-  backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  backdrop-filter: blur(18px) saturate(1.4); -webkit-backdrop-filter: blur(18px) saturate(1.4);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .07),
+    inset 0 1px 0 rgba(255, 217, 184, .16),
     0 30px 70px -28px rgba(0, 0, 0, .75),
-    0 0 60px -24px rgba(139, 92, 246, .35);
+    0 0 60px -26px rgba(255, 122, 47, .28);
 }
 .card::before {
   content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  background: radial-gradient(90% 60% at 0% 0%, rgba(157, 111, 255, .10), rgba(157, 111, 255, 0) 70%);
+  background:
+    radial-gradient(70% 46% at 18% 0%, rgba(255, 179, 120, .11), rgba(255, 179, 120, 0) 72%),
+    linear-gradient(180deg, rgba(255, 255, 255, .035), rgba(255, 255, 255, 0) 38%);
 }
 .card-eyebrow {
   display: flex; align-items: center; gap: 9px;
@@ -234,16 +256,15 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 .card-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px rgba(157, 111, 255, .18), 0 0 8px var(--accent); }
 .card-title {
-  margin: 16px 0 0; font: 700 32px/1.1 var(--f-display); letter-spacing: -.035em;
+  margin: 16px 0 0; font: 700 var(--title-fs)/1.1 var(--f-display); letter-spacing: -.035em;
   color: var(--text);
 }
-/* вторая строка — градиентный акцент, как «одновременно» в заголовке flowww.space */
+/* вторая строка — фирменный приём референса: серифный курсив тёплым кремовым.
+   Курсив Playfair на том же кегле визуально мельче гротеска — берём на ~12% крупнее */
 .card-sub {
-  margin: 2px 0 0; font: 700 32px/1.14 var(--f-display); letter-spacing: -.035em;
-  width: fit-content; max-width: 100%;
-  background: var(--grad-text); -webkit-background-clip: text; background-clip: text;
-  color: transparent; -webkit-text-fill-color: transparent;
-  padding-bottom: .06em;
+  margin: 0; font: italic 500 calc(var(--title-fs) * 1.12)/1.12 var(--f-serif); letter-spacing: -.012em;
+  color: var(--cream);
+  text-shadow: 0 0 24px rgba(255, 160, 77, .22);
 }
 .card-text {
   margin: 14px 0 0; font: 400 15px/1.55 var(--f-ui); color: var(--muted);
@@ -270,15 +291,17 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   display: flex; align-items: center; gap: 14px;
   margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line);
 }
+/* цифры-факты — тёплый акцент (в референсе бирюзовые «18.0», «3.0"») */
 .fact-num {
   font: 700 22px/1.1 var(--f-display); letter-spacing: -.03em;
-  background: var(--grad-text); -webkit-background-clip: text; background-clip: text;
+  background: var(--grad-warm); -webkit-background-clip: text; background-clip: text;
   color: transparent; -webkit-text-fill-color: transparent;
+  padding: .04em .04em .06em; margin: -.04em -.04em -.06em;
 }
 .fact-num--logo { font-family: var(--f-logo); font-weight: 800; font-size: 25px; letter-spacing: -.045em; }
 .fact-num--url { font-size: 16px; letter-spacing: -.02em; }
 .fact-label { font: 600 10px/1.2 var(--f-ui); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
-.diamond { margin-left: auto; width: 6px; height: 6px; background: var(--accent); transform: rotate(45deg); box-shadow: 0 0 10px var(--accent); flex: none; }
+.diamond { margin-left: auto; width: 6px; height: 6px; background: var(--warm); transform: rotate(45deg); box-shadow: 0 0 10px var(--warm); flex: none; }
 
 /* ---------- мини-UI под карточкой ---------- */
 .media { margin-top: 20px; }
@@ -293,8 +316,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   position: relative; border-radius: 18px; overflow: hidden;
   background: var(--card);
   border: 1px solid var(--line-2);
-  backdrop-filter: blur(16px) saturate(1.3); -webkit-backdrop-filter: blur(16px) saturate(1.3);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 24px 60px -24px rgba(0, 0, 0, .7);
+  backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: inset 0 1px 0 rgba(255, 217, 184, .12), 0 24px 60px -24px rgba(0, 0, 0, .7);
 }
 
 /* плеер */
@@ -302,22 +325,23 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .pl-cover {
   width: 74px; height: 74px; border-radius: 12px; flex: none; position: relative;
   /* «пластинка» в углу — слоем фона, без вылезающего псевдоэлемента */
+  /* обложка — тот же «закат», что за объектом; «пластинка» в углу кремовая */
   background:
-    radial-gradient(circle at calc(100% - 12px) calc(100% - 12px), rgba(56,189,248,.95) 0 5.4px, rgba(56,189,248,0) 5.9px 9px, rgba(12,10,24,.85) 9.5px 30px, rgba(12,10,24,0) 30.5px),
-    radial-gradient(75% 75% at 28% 22%, #ede4ff, #b388ff 30%, #7c3aed 62%, #2a1458 92%);
+    radial-gradient(circle at calc(100% - 12px) calc(100% - 12px), rgba(255,217,184,.95) 0 5.4px, rgba(255,217,184,0) 5.9px 9px, rgba(12,10,24,.85) 9.5px 30px, rgba(12,10,24,0) 30.5px),
+    radial-gradient(80% 80% at 30% 24%, #ffe2c4, #ffa04d 26%, #e0457b 52%, #7c3aed 78%, #2a1458 100%);
   display: grid; place-items: end start; padding: 7px 9px;
-  box-shadow: 0 8px 24px -8px rgba(139, 92, 246, .6);
+  box-shadow: 0 8px 24px -8px rgba(255, 122, 47, .55);
 }
 .pl-cover span { position: relative; z-index: 1; font: 800 18px/1 var(--f-logo); letter-spacing: -.05em; color: #fff; }
 .pl-main { flex: 1; min-width: 0; }
-.pl-kicker { display: flex; align-items: center; gap: 7px; font: 600 9.5px/1 var(--f-ui); letter-spacing: .14em; text-transform: uppercase; color: var(--emerald); }
+.pl-kicker { display: flex; align-items: center; gap: 7px; font: 600 9.5px/1 var(--f-ui); letter-spacing: .14em; text-transform: uppercase; color: var(--warm); }
 .pl-title { margin-top: 7px; font: 600 16px/1.15 var(--f-ui); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pl-bar { margin-top: 10px; height: 3px; border-radius: 3px; background: rgba(255, 255, 255, .1); overflow: hidden; }
-.pl-bar i { display: block; height: 100%; width: 33%; background: linear-gradient(90deg, #7c3aed, #c4a1ff); border-radius: inherit; box-shadow: 0 0 8px rgba(157, 111, 255, .8); }
+.pl-bar i { display: block; height: 100%; width: 33%; background: linear-gradient(90deg, #7c3aed, #e0457b, #ffa04d); border-radius: inherit; box-shadow: 0 0 8px rgba(255, 140, 96, .7); }
 .pl-time { display: flex; justify-content: space-between; margin-top: 5px; font: 500 9.5px/1 var(--f-ui); color: var(--dim); font-variant-numeric: tabular-nums; }
 .pl-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex: none; }
 .eq { display: flex; align-items: flex-end; gap: 2px; height: 16px; }
-.eq i { width: 3px; height: 100%; border-radius: 2px; background: linear-gradient(0deg, #7c3aed, #c4a1ff); transform-origin: bottom; animation: eq 1.1s ease-in-out infinite; }
+.eq i { width: 3px; height: 100%; border-radius: 2px; background: linear-gradient(0deg, #7c3aed, #ffc28a); transform-origin: bottom; animation: eq 1.1s ease-in-out infinite; }
 .eq i:nth-child(2) { animation-delay: -.3s; } .eq i:nth-child(3) { animation-delay: -.6s; } .eq i:nth-child(4) { animation-delay: -.15s; } .eq i:nth-child(5) { animation-delay: -.45s; }
 @keyframes eq { 0%, 100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
 .avatars { display: flex; align-items: center; }
@@ -330,9 +354,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 /* визуализатор: три слушателя, три цвета — как демо синхронизации на flowww.space */
 .viz { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
-.viz-row { display: flex; align-items: center; gap: 10px; height: 26px; --wc: var(--emerald); }
+.viz-row { display: flex; align-items: center; gap: 10px; height: 26px; --wc: var(--warm); }
 .viz-row:nth-child(2) { --wc: var(--accent-light); }
-.viz-row:nth-child(3) { --wc: var(--peach); }
+.viz-row:nth-child(3) { --wc: var(--pink); }
 .viz-who { width: 40px; flex: none; font: 600 9.5px/1 var(--f-ui); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .viz-wave {
   flex: 1; height: 100%;
@@ -414,25 +438,23 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .rail-dot.is-on::after { opacity: 1; transform: scale(1); }
 .rail-dot:hover::before { background: #fff; transform: scale(1.6); }
 
-/* счётчик — бейдж flowww.space: фиолетовая пилюля с зелёной точкой */
+/* счётчик — бейдж flowww.space: фиолетовая пилюля, «живая» точка тёплая */
 .counter {
   left: 50%; bottom: clamp(18px, 3.6vh, 34px); transform: translateX(-50%);
   display: flex; align-items: center; gap: 11px; padding: 9px 18px 9px 14px;
-  /* фиолетовый тон бейджа поверх почти непрозрачной тёмной подложки: на объекте (гл. 3) пилюля
-     читается как плашка, а не как полупрозрачное пятно на амбушюре */
-  border-radius: 999px; background: linear-gradient(rgba(168, 85, 247, .14), rgba(168, 85, 247, .14)), rgba(14, 11, 22, .86);
-  border: 1px solid rgba(168, 85, 247, .32);
-  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, .7);
+  border-radius: 999px; background: linear-gradient(rgba(168, 85, 247, .13), rgba(168, 85, 247, .13)), rgba(14, 10, 20, .8);
+  border: 1px solid rgba(168, 85, 247, .3);
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, .7), inset 0 1px 0 rgba(255, 217, 184, .08);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   white-space: nowrap;
 }
-.counter::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--emerald); box-shadow: 0 0 0 3px rgba(52, 211, 153, .16), 0 0 8px var(--emerald); flex: none; }
-.counter-num { font: 600 11px/1 var(--f-ui); letter-spacing: .12em; color: #e9d5ff; font-variant-numeric: tabular-nums; }
+.counter::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--warm); box-shadow: 0 0 0 3px rgba(255, 160, 77, .16), 0 0 8px var(--warm); flex: none; }
+.counter-num { font: 600 11px/1 var(--f-ui); letter-spacing: .12em; color: #ecdcff; font-variant-numeric: tabular-nums; }
 .counter-name { font: 500 12.5px/1 var(--f-ui); color: var(--text); }
 
 .scroll-hint { left: var(--side); bottom: clamp(18px, 3.6vh, 36px); display: flex; align-items: center; gap: 14px; }
 .mouse { width: 15px; height: 23px; border-radius: 8px; border: 1.5px solid var(--muted); display: flex; justify-content: center; padding-top: 4px; }
-.mouse i { width: 2px; height: 5px; border-radius: 2px; background: var(--accent-light); animation: wheel 1.6s ease-in-out infinite; }
+.mouse i { width: 2px; height: 5px; border-radius: 2px; background: var(--warm); animation: wheel 1.6s ease-in-out infinite; }
 @keyframes wheel { 0% { transform: translateY(0); opacity: 1; } 70% { transform: translateY(7px); opacity: 0; } 100% { transform: translateY(0); opacity: 0; } }
 .hint-label { font: 600 10.5px/1 var(--f-ui); letter-spacing: .18em; text-transform: uppercase; color: var(--muted); transition: color .25s; }
 .scroll-hint:hover .hint-label { color: var(--text); }
@@ -444,67 +466,80 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .is-finale .counter { opacity: 0 !important; visibility: hidden !important; }
 
 .progress-line { left: 0; right: 0; bottom: 0; height: 2px; background: rgba(255, 255, 255, .05); pointer-events: none; }
-.progress-line i { display: block; height: 100%; width: 100%; transform-origin: 0 50%; transform: scaleX(0); background: linear-gradient(90deg, #7c3aed, #a855f7 55%, #38bdf8); box-shadow: 0 0 12px rgba(157, 111, 255, .8); }
+.progress-line i { display: block; height: 100%; width: 100%; transform-origin: 0 50%; transform: scaleX(0); background: linear-gradient(90deg, #7c3aed, #a855f7 40%, #e0457b 72%, #ffa04d); box-shadow: 0 0 12px rgba(255, 122, 47, .6); }
 
-/* ---------- интро: тёмный экран → фиолетовый силуэт → луч света с «flow» ---------- */
+/* ---------- интро: тёмный экран → тёплая плитка-свечение → силуэт чашки → тёплый луч с «flow» ---------- */
 .intro { position: fixed; inset: 0; z-index: 40; background: var(--bg); overflow: hidden; }
 .intro::before {
   content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(38% 48% at 50% 50%, rgba(99, 102, 241, .12), rgba(99, 102, 241, 0) 72%);
+  background: radial-gradient(46% 56% at 50% 50%, rgba(124, 58, 237, .13), rgba(124, 58, 237, 0) 74%);
 }
 .intro.is-done { visibility: hidden; }
 /* мягкий ореол луча: та же форма, что у луча, только размытая (blur на обёртке — clip-path режет внутри) */
-.intro-glow { position: absolute; inset: 0; filter: blur(30px); opacity: .9; pointer-events: none; }
-.intro-glow i { position: absolute; inset: 0; background: linear-gradient(90deg, #b794ff 0%, #8b5cf6 45%, #5b21b6 100%); clip-path: polygon(0 0, 0 0, 0 0); }
+.intro-glow { position: absolute; inset: 0; filter: blur(32px); opacity: .85; pointer-events: none; }
+.intro-glow i { position: absolute; inset: 0; background: linear-gradient(90deg, #ffb35c 0%, #ff7a2f 36%, #e0457b 66%, #7c3aed 100%); clip-path: polygon(0 0, 0 0, 0 0); }
+/* луч: кремовый у источника → оранжевый → фиолетовый на дальнем конце */
 .intro-beam {
   position: absolute; inset: 0;
-  background: linear-gradient(90deg, #f6f1ff 0%, #ddd0ff 32%, #b79cff 68%, #9d6fff 100%);
+  background: linear-gradient(90deg, #ffd9b8 0%, #ffb47a 24%, #ff7a2f 50%, #c8479a 76%, #9d6fff 100%);
   clip-path: polygon(0 0, 0 0, 0 0);
 }
 .intro-words { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; }
 .iw-row {
   font: 800 min(19vw, 36vh)/.86 var(--f-logo); letter-spacing: -.05em;
   white-space: nowrap; will-change: transform;
-  background: linear-gradient(90deg, #0b0816 0%, #1d1240 45%, #3a1d7c 100%);
+  background: linear-gradient(90deg, #3a1406 0%, #4a1230 50%, #24104f 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
   padding: .04em .06em;
 }
-.intro-cup { position: absolute; left: 0; top: 0; overflow: visible; will-change: transform; filter: drop-shadow(0 0 14px rgba(157, 111, 255, .7)); }
-.cup-body { fill: #9d6fff; }
-.cup-pad { fill: #6d3fe0; }
-.cup-band { fill: none; stroke: #9d6fff; stroke-width: 10; stroke-linecap: round; stroke-dasharray: 100 100; stroke-dashoffset: 100; }
-.cup-pulse { animation: cupPulse 1.6s ease-in-out infinite; transform-origin: 0 0; }
-@keyframes cupPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
-/* стартовая плитка — как иконка Flow: знак ∞ на фиолетовом, ореол вокруг и подпись снизу */
-.cup-inf { fill: none; stroke: url(#cup-inf-grad); stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; }
+.intro-cup { position: absolute; left: 0; top: 0; overflow: visible; will-change: transform; filter: drop-shadow(0 0 16px rgba(255, 140, 70, .75)); }
+.cup-body { fill: url(#cup-warm-grad); }
+.cup-pad { fill: #c4501c; }
+.cup-band { fill: none; stroke: #ffb35c; stroke-width: 10; stroke-linecap: round; stroke-dasharray: 100 100; stroke-dashoffset: 100; }
+.cup-pulse { animation: cupPulse 1.8s ease-in-out infinite; transform-origin: 0 0; }
+@keyframes cupPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+/* стартовая плитка — тёплый прямоугольник, как видоискатель в референсе: тёмная полоса-∞ поперёк */
+.cup-inf { fill: none; stroke: url(#cup-inf-grad); stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+/* тёплое сияние за плиткой — то же «солнце», что потом встанет за наушниками */
 .intro-halo {
-  position: absolute; left: 50%; top: 50%; width: 440px; height: 440px; margin: -220px 0 0 -220px; border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(157, 111, 255, .30), rgba(139, 92, 246, .11) 48%, rgba(139, 92, 246, 0) 100%);
-  pointer-events: none; animation: haloPulse 3.2s ease-in-out infinite;
+  --hs: min(max(96vmin, 125vw), 900px);
+  position: absolute; left: 50%; top: 50%; width: var(--hs); height: var(--hs);
+  margin: calc(var(--hs) / -2) 0 0 calc(var(--hs) / -2); border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 179, 92, .55) 0%, rgba(255, 122, 47, .36) 16%, rgba(224, 69, 123, .2) 38%,
+    rgba(124, 58, 237, .11) 60%, rgba(124, 58, 237, 0) 100%);
+  pointer-events: none; animation: haloPulse 3.6s ease-in-out infinite;
 }
-@keyframes haloPulse { 0%, 100% { transform: scale(.9); } 50% { transform: scale(1.06); } }
+@keyframes haloPulse { 0%, 100% { transform: scale(.94); } 50% { transform: scale(1.04); } }
 .intro-cap {
-  position: absolute; left: 0; right: 0; top: calc(50% + 50px);
+  position: absolute; left: 0; right: 0; top: calc(50% + 110px);
   display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none;
 }
 .ic-word {
-  font: 800 30px/1 var(--f-logo); letter-spacing: -.045em; padding: 0 .08em;
-  background: var(--grad-text); -webkit-background-clip: text; background-clip: text;
+  font: 800 46px/1 var(--f-logo); letter-spacing: -.045em; padding: 0 .08em .04em;
+  background: linear-gradient(180deg, #fff 20%, #ffd9b8 100%); -webkit-background-clip: text; background-clip: text;
   color: transparent; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 18px rgba(255, 140, 70, .45));
 }
-.ic-tag { font: 600 10px/1 var(--f-ui); letter-spacing: .34em; padding-left: .34em; text-transform: uppercase; color: var(--dim); }
+.ic-line { font: italic 500 19px/1.2 var(--f-serif); color: var(--cream); margin-top: -2px; }
+.ic-tag { font: 600 10px/1 var(--f-ui); letter-spacing: .34em; padding-left: .34em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
 .intro-fill { position: absolute; inset: 0; opacity: 0; }
 .intro-fill::before, .intro-fill::after { content: ""; position: absolute; inset: 0; }
-.intro-fill::before { background: var(--glows), var(--bg); }
-.intro-fill::after { background: radial-gradient(120% 120% at 55% 45%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, .45) 100%); }
+/* фон сайта, которым заливает луч: края + «солнце» примерно там, где встанут наушники главы 1 */
+.intro-fill::before {
+  background:
+    radial-gradient(circle 80vmin at 67% 52%, rgba(255, 179, 92, .95) 0%, rgba(255, 122, 47, .82) 15%, rgba(224, 69, 123, .52) 36%,
+      rgba(124, 58, 237, .27) 56%, rgba(124, 58, 237, .09) 76%, rgba(124, 58, 237, 0) 100%),
+    var(--glows), var(--bg);
+}
+.intro-fill::after { background: radial-gradient(120% 120% at 55% 45%, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, .5) 100%); }
 .intro-skip {
   position: absolute; right: var(--side); bottom: clamp(18px, 3.6vh, 34px);
   display: inline-flex; align-items: center; gap: 12px; padding: 11px 16px 11px 18px; border-radius: 999px;
-  background: rgba(255, 255, 255, .05); border: 1px solid var(--line-2); color: var(--text);
+  background: rgba(20, 14, 28, .5); border: 1px solid var(--line-2); color: var(--text);
   font: 500 13px/1 var(--f-ui);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
 }
-.intro-skip .arr { color: var(--accent-light); }
+.intro-skip .arr { color: var(--warm); }
 .intro-skip:hover { background: rgba(255, 255, 255, .1); }
 
 /* после первого интро обвязка живёт поверх тёмного экрана интро */
@@ -516,14 +551,13 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 /* ---------- адаптив ---------- */
 @media (max-width: 1280px) {
-  :root { --card-w: clamp(330px, 30vw, 420px); }
-  .card-title, .card-sub { font-size: 28px; }
+  :root { --card-w: clamp(330px, 30vw, 420px); --title-fs: 28px; }
   .menu-list a { padding: 10px 12px; font-size: 13.5px; }
 }
 @media (max-height: 760px) and (min-width: 721px) {
+  :root { --title-fs: 27px; }
   .card { padding: 18px 22px 14px; }
-  .card-title { font-size: 27px; margin-top: 12px; }
-  .card-sub { font-size: 27px; }
+  .card-title { margin-top: 12px; }
   .card-text { font-size: 14px; margin-top: 10px; }
   .pill-btn { margin-top: 12px; }
   .card-fact { margin-top: 14px; padding-top: 10px; }
@@ -540,15 +574,32 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 }
 /* узкое, но не портретное окно (721–900 px): колонка карточек уже, слова сдвинуты правее */
 @media (orientation: landscape) and (max-width: 900px) and (min-height: 501px) {
-  :root { --card-w: min(42vw, 340px); }
-  .card-title, .card-sub { font-size: 24px; }
+  :root { --card-w: min(42vw, 340px); --title-fs: 24px; }
   .giant-word { left: 50vw; right: 5vw; }
 }
 @media (min-width: 1800px) {
-  .card-title, .card-sub { font-size: 36px; }
+  :root { --title-fs: 36px; }
   .card-text { font-size: 16px; }
   .brand-word { font-size: 34px; }
   .brand-icon { width: 38px; height: 38px; border-radius: 11px; }
+}
+
+/* большие мониторы (1440p и выше): колонка карточек и обвязка крупнее, чтобы не теряться на фоне объекта */
+@media (min-width: 2200px) and (min-height: 1200px) {
+  :root { --card-w: 560px; --title-fs: 44px; --card-top: 170px; }
+  .card { padding: 30px 34px 22px; border-radius: 26px; }
+  .card-eyebrow { font-size: 12.5px; }
+  .card-text { font-size: 18.5px; }
+  .pill-btn { font-size: 16px; padding: 14px 20px 14px 22px; }
+  .fact-num { font-size: 27px; }
+  .fact-label { font-size: 12px; }
+  .brand-word { font-size: 40px; }
+  .brand-icon { width: 44px; height: 44px; border-radius: 13px; }
+  .brand-tag { font-size: 11.5px; }
+  .menu-list a { font-size: 16.5px; padding: 13px 20px; }
+  .counter-num { font-size: 13px; } .counter-name { font-size: 15px; }
+  .hint-label { font-size: 12.5px; }
+  .pin-text b { font-size: 15px; } .pin-text small { font-size: 10.5px; }
 }
 
 /* телефоны — портрет (узко или уже 4:5) и альбомная ориентация с низкой высотой: общая компактная обвязка */
@@ -598,11 +649,18 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
    объект сверху, карточка снизу во всю ширину */
 @media (max-width: 720px) and (orientation: portrait), (max-aspect-ratio: 4/5) {
   :root {
+    --title-fs: 23px;
     --glows:
-      radial-gradient(64% 36% at 52% 38%, rgba(139, 92, 246, .42) 0%, rgba(139, 92, 246, .15) 45%, rgba(139, 92, 246, 0) 76%),
-      radial-gradient(60% 30% at 8% 4%, rgba(99, 102, 241, .17), rgba(99, 102, 241, 0) 72%),
-      radial-gradient(70% 34% at 100% 100%, rgba(6, 182, 212, .15), rgba(6, 182, 212, 0) 72%),
-      radial-gradient(60% 30% at 0% 70%, rgba(236, 72, 153, .10), rgba(236, 72, 153, 0) 72%);
+      radial-gradient(60% 30% at 8% 4%, rgba(124, 58, 237, .16), rgba(124, 58, 237, 0) 72%),
+      radial-gradient(70% 34% at 100% 100%, rgba(157, 111, 255, .12), rgba(157, 111, 255, 0) 72%),
+      radial-gradient(60% 30% at 0% 70%, rgba(224, 69, 123, .11), rgba(224, 69, 123, 0) 72%);
+  }
+  .sun { width: 120vmax; height: 120vmax; margin: -60vmax 0 0 -60vmax; transform: translate3d(50vw, 30vh, 0); }
+  .intro-fill::before {
+    background:
+      radial-gradient(circle 60vmax at 50% 30%, rgba(255, 179, 92, .95) 0%, rgba(255, 122, 47, .82) 15%, rgba(224, 69, 123, .52) 36%,
+        rgba(124, 58, 237, .27) 56%, rgba(124, 58, 237, .09) 76%, rgba(124, 58, 237, 0) 100%),
+      var(--glows), var(--bg);
   }
   /* тёмная подложка под логотипом и меню: объект, уходящий вверх, не спорит с шапкой */
   .site-head::before {
@@ -612,10 +670,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   .card-wrap { left: 8px; right: 8px; width: auto; top: auto; bottom: 66px; }
   .card { padding: 16px 18px 12px; border-radius: 22px; }
   .card-eyebrow { font-size: 9.5px; }
-  .card-title { font-size: 23px; margin-top: 11px; }
-  .card-sub { font-size: 23px; }
-  .card-text { font-size: 13.5px; line-height: 1.5; margin-top: 8px; max-width: none; }
-  .pill-btn { margin-top: 12px; padding: 9px 14px 9px 16px; font-size: 12.5px; }
+  .card-title { margin-top: 11px; }
+  .card-text { font-size: 14px; line-height: 1.5; margin-top: 8px; max-width: none; }
+  .pill-btn { margin-top: 12px; padding: 9px 16px 9px 18px; font-size: 13.5px; }
   .btn-row { margin-top: 12px; }
   .btn-row .pill-btn { padding: 9px 12px 9px 14px; }
   .card-fact { margin-top: 12px; padding-top: 10px; }
@@ -623,23 +680,21 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   .media { display: none; }
 
   .giant-word, .giant-word[data-ch="8"] { left: 3vw; right: 3vw; top: 11.5vh; font-size: 14vw; }
-  .peek-word { top: 9vh; font-size: 36vw; }
-  /* финал на телефоне: слово крупнее и выше, под ним — призыв и кнопка «Скачать» */
-  .finale-logo { font-size: 28vw; transform: translateY(-12vh); }
+  .peek-word { left: 3vw; right: 3vw; top: 9vh; font-size: 36vw; }
+  /* финал на телефоне: композиция по центру экрана — подпись сверху, слово с чашкой, под ним призыв и две кнопки */
+  .finale-logo { font-size: 29vw; transform: translateY(-15vh); }
   .finale-cta {
     position: fixed; left: 16px; right: 16px; top: 60%; z-index: 10;
     display: flex; flex-direction: column; align-items: center; text-align: center;
     visibility: hidden; opacity: 0; pointer-events: none; will-change: transform, opacity;
   }
   .finale-cta.is-live { pointer-events: auto; }
-  .fc-title { margin: 0; font: 700 22px/1.15 var(--f-display); letter-spacing: -.035em; color: var(--text); }
-  .fc-title span {
-    background: var(--grad-text); -webkit-background-clip: text; background-clip: text;
-    color: transparent; -webkit-text-fill-color: transparent; padding-bottom: .06em;
-  }
-  .fc-text { margin: 8px 0 0; font: 400 13.5px/1.5 var(--f-ui); color: var(--muted); }
-  .finale-cta .pill-btn { margin-top: 18px; padding: 13px 20px 13px 22px; font-size: 14px; }
-  .fc-url { margin-top: 14px; font: 600 10px/1 var(--f-ui); letter-spacing: .2em; text-transform: uppercase; color: var(--dim); }
+  .fc-title { margin: 0; font: 700 25px/1.12 var(--f-display); letter-spacing: -.035em; color: var(--text); }
+  .fc-title span { display: block; font: italic 500 30px/1.12 var(--f-serif); letter-spacing: -.01em; color: var(--cream); text-shadow: 0 0 24px rgba(255, 160, 77, .3); }
+  .fc-text { margin: 10px 0 0; font: 400 14px/1.5 var(--f-ui); color: var(--muted); }
+  .fc-btns { display: flex; flex-direction: column; align-items: stretch; gap: 10px; width: min(100%, 300px); margin-top: 22px; }
+  .fc-btns .pill-btn { margin: 0; justify-content: center; padding: 14px 20px; font-size: 14.5px; }
+  .fc-url { margin-top: 18px; font: 600 10px/1 var(--f-ui); letter-spacing: .24em; text-transform: uppercase; color: var(--dim); }
 }
 
 /* телефон в альбомной ориентации (844x390, 667x375…): карточка — узкая колонка слева на всю высоту,
@@ -648,9 +703,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   .card-wrap { top: 60px; width: min(46vw, 380px); }
   .card { padding: 12px 16px 10px; border-radius: 18px; }
   .card-eyebrow { font-size: 9px; }
-  .card-title { font-size: 19px; margin-top: 8px; }
-  .card-sub { font-size: 19px; }
-  .card-text { font-size: 12.5px; line-height: 1.4; margin-top: 6px; max-width: none; }
+  :root { --title-fs: 19px; }
+  .card-title { margin-top: 8px; }
+  .card-text { font-size: 13.5px; line-height: 1.4; margin-top: 6px; max-width: none; }
   .pill-btn { margin-top: 8px; padding: 7px 12px 7px 14px; font-size: 11.5px; }
   .btn-row { margin-top: 8px; gap: 6px; }
   .btn-row .pill-btn { padding: 7px 10px 7px 12px; }
@@ -672,6 +727,36 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   .card-wrap { top: 56px; }
 }
 
+/* телефоны (оба положения): зоны нажатия не меньше 40px */
+@media (max-width: 720px) and (orientation: portrait), (max-aspect-ratio: 4/5), (orientation: landscape) and (max-height: 500px) {
+  .pill-btn, .btn-row .pill-btn { min-height: 40px; }
+  .menu-toggle { min-height: 40px; }
+  .brand { min-height: 40px; margin-top: -3px; }
+  .menu-list a { min-height: 44px; display: flex; align-items: center; }
+  .intro-skip { min-height: 40px; }
+  /* «Листай дальше / В начало»: на телефоне только мышка — расширяем кнопку до 40x40 вокруг неё */
+  .scroll-hint { min-width: 40px; min-height: 40px; margin: 0 0 -8px -12px; padding: 0 12px; }
+}
+/* планшет в портрете (раскладка «телефон», но экран широкий): карточка не растягивается на всю ширину */
+@media (min-width: 600px) and (max-aspect-ratio: 4/5) {
+  .card-wrap { left: max(8px, calc(50% - 300px)); right: max(8px, calc(50% - 300px)); bottom: 84px; }
+  .card { padding: 22px 26px 16px; }
+  .card-text { font-size: 15px; }
+  :root { --title-fs: 30px; }
+}
+/* сенсорные экраны (телефоны, планшеты): эффекты легче — меньше blur, без saturate, мягче тени, зерно слабее.
+   Холст сцены и так ограничен pixelRatio ≤ 2 (headphones.js) */
+@media (pointer: coarse) {
+  .card, .media-panel, .room-panel {
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    box-shadow: inset 0 1px 0 rgba(255, 217, 184, .14), 0 18px 40px -24px rgba(0, 0, 0, .7);
+  }
+  .card { background: rgba(20, 14, 28, .7); }
+  .pin, .chip, .menu-list, .menu-toggle, .counter, .intro-skip { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .grain { opacity: .035; }
+  .intro-glow { filter: blur(22px); }
+}
+
 /* аварийная раскладка: модуль с three не загрузился (офлайн / CDN недоступен) — тексты и ссылки статично */
 html.no-js-fallback { overflow-y: auto; }
 .no-js-fallback #intro, .no-js-fallback .track, .no-js-fallback .scene, .no-js-fallback .giant-layer,
@@ -690,12 +775,12 @@ html.no-js-fallback { overflow-y: auto; }
 /* упрощённое движение: системная настройка (кроме тестового режима) или ?rm=1 */
 @media (prefers-reduced-motion: reduce) {
   html:not(.is-test) :is(.card, .menu-list, .pin, .chip, .room-panel, .media-panel, .rail, .counter) { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
-  html:not(.is-test) .card { background: rgba(20, 17, 31, .96); }
-  html:not(.is-test) .media-panel { background: rgba(20, 17, 31, .96); }
+  html:not(.is-test) .card { background: var(--card-solid); }
+  html:not(.is-test) .media-panel { background: var(--card-solid); }
   html:not(.is-test) :is(.eq i, .mouse i, .cup-pulse, .intro-halo) { animation: none; }
   html:not(.is-test) .pill-btn, html:not(.is-test) .menu-list a,
   html:not(.is-test) .rail-dot::before, html:not(.is-test) .rail-dot::after { transition-duration: .15s; }
 }
 html.is-reduced :is(.card, .menu-list, .pin, .chip, .room-panel, .media-panel, .rail, .counter) { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
-html.is-reduced .card { background: rgba(20, 17, 31, .96); }
+html.is-reduced .card { background: var(--card-solid); }
 html.is-reduced :is(.eq i, .mouse i, .cup-pulse, .intro-halo) { animation: none; }
