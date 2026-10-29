@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flow — слушайте вместе</title>
+<meta name="description" content="Flow — приложение для Windows и macOS, в котором друзья слушают один трек в одну и ту же секунду. Комната, код из шести цифр, чат и любимые сервисы: Яндекс Музыка, SoundCloud, Audius, Jamendo.">
+<meta name="theme-color" content="#ef6410">
+<meta property="og:title" content="Flow — слушайте вместе">
+<meta property="og:description" content="Один трек, одна секунда, все вместе. Flow для Windows и macOS.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Flow">
+<meta property="og:locale" content="ru_RU">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%23ef6410'/%3E%3Cpath d='M38 52V25c0-6.5 3.5-10 9.5-10' fill='none' stroke='%23fbeee2' stroke-width='9' stroke-linecap='round'/%3E%3Cpath d='M26 29h22' fill='none' stroke='%23fbeee2' stroke-width='8' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=PT+Serif:ital,wght@0,400;1,400&family=Playfair+Display:ital,wght@0,900;1,500;1,700&family=Rubik:wght@400;500;600;700;800;900&family=Unbounded:wght@900&subset=cyrillic&display=swap">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+<style>
+/*@@STYLES@@*/
+</style>
+</head>
+<body>
+<h1 class="sr-only">Flow — слушайте музыку вместе, в одну и ту же секунду</h1>
+
+<!-- ============ фиксированная сцена ============ -->
+<div id="stage" class="stage" aria-hidden="false">
+  <div id="bg" class="bg"></div>
+
+  <!-- гигантские слова: под 3D-объектом -->
+  <div class="giant-layer" aria-hidden="true">
+    <div class="giant-word" id="word-flow" data-ch="1">FLOW</div>
+    <div class="giant-word" id="word-create" data-ch="5">СОЗДАЙ</div>
+    <div class="giant-word" id="word-inside" data-ch="8" data-fx="scatter-out">ВНУТРИ</div>
+    <div class="giant-word" id="word-together" data-ch="11" data-fx="scatter-in">ВМЕСТЕ</div>
+    <div class="peek-word" id="word-peek" data-ch="3">flow</div>
+  </div>
+
+  <!-- финальный логотип: «o» прозрачная, на её место встаёт чашка -->
+  <div id="finale" class="finale" data-ch="13" aria-label="flow">
+    <div class="finale-logo"><span class="fl-part">f</span><span class="fl-part">l</span><span class="fl-hole" id="finale-hole">o</span><span class="fl-part">w</span><i class="fl-baseline" id="finale-baseline"></i></div>
+  </div>
+
+  <canvas id="scene" class="scene"></canvas>
+
+  <!-- пины и панели, привязанные к 3D-точкам -->
+  <div class="anchor-layer" aria-hidden="true">
+    <div class="pin" data-ch="1" data-anchor="center" data-place="below">
+      <span class="pin-plus">+</span>
+      <span class="pin-text"><b>Flow · наушники для двоих</b><small>Windows · macOS</small></span>
+    </div>
+    <div class="pin" data-ch="4" data-anchor="touch" data-fallback="cupRight" data-place="side">
+      <span class="pin-plus">+</span>
+      <span class="pin-text"><b>Сенсор</b><small>пауза для всех</small></span>
+    </div>
+
+    <div class="anchored room-panel" data-ch="5" data-anchor="cupRight" data-place="left">
+      <div class="rp-head"><i class="live-dot"></i>Код комнаты</div>
+      <div class="rp-code"><span>482</span><span>193</span></div>
+      <div class="rp-foot"><span class="rp-tag">Приватная</span><span class="rp-tag rp-tag--ghost">Скопировать</span></div>
+    </div>
+
+    <div class="orbit" data-ch="6" data-anchor="driver" data-fallback="center">
+      <span class="chip" style="--c:#ffcc00"><i></i>Яндекс Музыка</span>
+      <span class="chip" style="--c:#ff7a1a"><i></i>SoundCloud</span>
+      <span class="chip" style="--c:#b06cff"><i></i>Audius</span>
+      <span class="chip" style="--c:#43e0ee"><i></i>Jamendo</span>
+    </div>
+  </div>
+
+  <!-- карточки глав -->
+  <div class="card-layer">
+
+    <div class="card-wrap" data-ch="1">
+      <article class="card" data-test="card" data-chapter="1">
+        <div class="card-eyebrow"><i class="dot"></i>01 / Звук на двоих</div>
+        <h2 class="card-title">Каждая нота.</h2>
+        <p class="card-sub">Одна на всех.</p>
+        <p class="card-text">Приложение, в котором друзья слушают один трек в&nbsp;одну и&nbsp;ту же секунду. Где бы они ни были.</p>
+        <a class="pill-btn" href="#ch-2" data-goto="2">Узнать о Flow <span class="arr">↓</span></a>
+        <div class="card-fact"><b class="fact-num">6</b><span class="fact-label">цифр — код комнаты</span><i class="diamond"></i></div>
+      </article>
+    </div>
+
+    <div class="card-wrap" data-ch="2">
+      <article class="card" data-test="card" data-chapter="2">
+        <div class="card-eyebrow"><i class="dot"></i>02 / Подпись</div>
+        <h2 class="card-title">Одно имя.</h2>
+        <p class="card-sub">Один ритм.</p>
+        <p class="card-text">Знак flow на&nbsp;чашке — не&nbsp;просто логотип. Это обещание: никто не&nbsp;отстаёт и&nbsp;никто не&nbsp;убегает вперёд.</p>
+        <a class="pill-btn" href="#ch-13" data-goto="13">Посмотреть знак <span class="arr">↗</span></a>
+        <div class="card-fact"><b class="fact-num fact-num--logo">flow</b><span class="fact-label">the signature</span><i class="diamond"></i></div>
+      </article>
+    </div>
+
+    <div class="card-wrap" data-ch="3">
+      <article class="card" data-test="card" data-chapter="3">
+        <div class="card-eyebrow"><i class="dot"></i>03 / Сделано, чтобы слушать</div>
+        <h2 class="card-title">Сделано,</h2>
+        <p class="card-sub">чтобы слушать.</p>
+        <p class="card-text">Мягкие амбушюры, тихий мир вокруг. Всё внимание — музыке и&nbsp;тем, с&nbsp;кем ты её делишь.</p>
+        <div class="card-fact"><b class="fact-num">24/7</b><span class="fact-label">открытые комнаты</span><i class="diamond"></i></div>
+      </article>
+    </div>
+
+    <div class="card-wrap" data-ch="4">
+      <article class="card" data-test="card" data-chapter="4">
+        <div class="card-eyebrow"><i class="dot"></i>04 / Одно касание</div>
+        <h2 class="card-title">Одно касание.</h2>
+        <p class="card-sub">Один момент.</p>
+        <p class="card-text">Ставишь паузу — пауза у&nbsp;всех. Перематываешь — все слышат то&nbsp;же место. Синхронно.</p>
+        <a class="pill-btn" href="#ch-8" data-goto="8">Как работает синхронизация <span class="arr">↗</span></a>
+        <div class="card-fact"><b class="fact-num">1</b><span class="fact-label">тап — для всех</span><i class="diamond"></i></div>
+      </article>
+      <div class="media">
+        <div class="media-cap"><span>Нажми — и пауза у всех.</span><i class="media-ico">↻</i></div>
+        <div class="media-panel player">
+          <div class="pl-cover"><span>fl</span></div>
+          <div class="pl-main">
+            <div class="pl-kicker"><i class="live-dot"></i>Сейчас играет</div>
+            <div class="pl-title">Тёплый вечер</div>
+            <div class="pl-bar"><i></i></div>
+            <div class="pl-time"><span>1:12</span><span>3:40</span></div>
+          </div>
+          <div class="pl-side">
+            <div class="eq"><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="avatars"><i style="--a:#43e0ee">А</i><i style="--a:#ffcc66">М</i><span>+2 слушают</span></div>
+            <div class="pl-ctrl"><b>⏮</b><b class="pl-play">❚❚</b><b>⏭</b></div>
+          </div>
+        </div>
+        <div class="media-foot"><span>Пауза — у всех сразу.</span><span class="mini-pills"><b>Пауза</b><b class="on">Играть</b></span></div>
+      </div>
+    </div>
+
+    <div class="card-wrap" data-ch="5">
+      <article class="card" data-test="card" data-chapter="5">
+        <div class="card-eyebrow"><i class="dot"></i>05 / Создай комнату</div>
+        <h2 class="card-title">Открой</h2>
+        <p class="card-sub">свою комнату.</p>
+        <p class="card-text">Приватная — для своих, публичная — для всех. Позови друзей одним кодом.</p>
+        <a class="pill-btn" href="https://flowww.space" target="_blank" rel="noopener">Создать комнату <span class="arr">↗</span></a>
+        <div class="card-fact"><b class="fact-num">2</b><span class="fact-label">типа комнат</span><i class="diamond"></i></div>
+      </article>
+    </div>
+
+    <div class="card-wrap" data-ch="6">
+      <article class="card" data-test="card" data-chapter="6">
+        <div class="card-eyebrow"><i class="dot"></i>06 / Источники</div>
+        <h2 class="card-title">Вся музыка.</h2>
+        <p class="card-sub">В одном месте.</p>
+        <p class="card-text">Яндекс Музыка, SoundCloud, Audius, Jamendo. Подключи своё — и&nbsp;слушайте вместе.</p>
+        <a class="pill-btn" href="https://flowww.space" target="_blank" rel="noopener">Подключить сервис <span class="arr">↗</span></a>
+        <div class="card-fact"><b class="fact-num">4</b><span class="fact-label">источника музыки</span><i class="diamond"></i></div>
+      </article>
+    </div>
+
+    <div class="card-wrap" data-ch="7">
+      <article class="card" data-test="card" data-chapter="7">
+        <div class="card-eyebrow"><i class="dot"></i>07 / Чат в комнате</div>
+        <h2 class="card-title">Пара слов.</h2>
+        <p class="card-sub">Целый вечер.</p>
+        <p class="card-text">Скидывай реакции и&nbsp;треки прямо в&nbsp;комнату. Музыка звучит — разговор не&nbsp;прерывается.</p>
+        <a class="pill-btn" href="#ch-11" data-goto="11">Открыть чат <span class="arr">↗</span></a>
+        <div class="card-fact"><b class="fact-num">Чат</b><span class="fact-label">встроен в комнату</span><i class="diamond"></i></div>
+      </article>
+    </div>
+
+    <div class="card-wrap" data-ch="8">
+      <article class="card" data-test="card" data-chapter="8">
+        <div class="card-eyebrow"><i class="dot"></i>08 / Внутри</div>
+        <h2 class="card-title">Устроено</h2>
+        <p class="card-sub">изнутри.</p>
+        <p class="card-text">Сервер не&nbsp;раздаёт музыку — он держит только время. Каждый играет трек сам, а&nbsp;Flow следит, чтобы все были на&nbsp;одной секунде.</p>
+        <a class="pill-btn" href="#ch-9" data-goto="9">Как это устроено <span class="arr">↗</span></a>
+        <div class="card-fact"><b class="fact-num" id="parts-count">67</b><span class="fact-label">деталей</span><i class="diamond"></i></div>
+      </article>
+    </div>
+
+    <div class="card-wrap" data-ch="9">
+      <article class="card" data-test="card" data-chapter="9">
+        <div class="card-eyebrow"><i class="dot"></i>09 / Драйвер</div>
+        <h2 class="card-title">Звук становится</h2>
+        <p class="card-sub">общим.</p>
+        <p class="card-text">Один трек, одна волна, один момент — на&nbsp;всех устройствах сразу.</p>
+        <a class="pill-btn" href="https://flowww.space" target="_blank" rel="noopener">Послушать пример <span class="arr">↗</span></a>
+        <div class="card-fact"><b class="fact-num">1</b><span class="fact-label">волна на всех</span><i class="diamond"></i></div>
+      </article>
+      <div class="media">
+        <div class="media-cap"><span>Смотри, как звучит одна секунда.</span><i class="media-ico">↻</i></div>
+        <div class="media-panel viz">
+          <div class="viz-row"><span class="viz-who">Ты</span><span class="viz-wave"></span></div>
+          <div class="viz-row"><span class="viz-who">Аня</span><span class="viz-wave"></span></div>
+          <div class="viz-row"><span class="viz-who">Макс</span><span class="viz-wave"></span></div>
+          <i class="viz-head"></i>
+        </div>
+        <div class="media-foot"><span>Все на одной секунде.</span><span class="mini-pills"><b>Пример</b><b class="on">Слушать</b></span></div>
+      </div>
+    </div>
+
+    <div class="card-wrap" data-ch="10">
+      <article class="card" data-test="card" data-chapter="10">
+        <div class="card-eyebrow"><i class="dot"></i>10 / История</div>
+        <h2 class="card-title">Мгновение</h2>
+        <p class="card-sub">навсегда.</p>
+        <p class="card-text">Профиль хранит, что вы слушали вместе. Вечер, который хочется повторить, — в&nbsp;один клик.</p>
+        <a class="pill-btn" href="https://flowww.space" target="_blank" rel="noopener">Мой профиль <span class="arr">↗</span></a>
+        <div class="card-fact"><b class="fact-num">∞</b><span class="fact-label">вечеров вместе</span><i class="diamond"></i></div>
+      </article>
+      <div class="media">
+        <div class="media-cap"><span>Вы слушали вместе.</span><i class="media-ico">↻</i></div>
+        <div class="media-panel ribbon">
+          <div class="rb-item"><i class="rb-cover" style="--g1:#ff9a3c;--g2:#7a1f08"></i><b>Тёплый вечер</b><small>пт · «Дача»</small></div>
+          <div class="rb-item"><i class="rb-cover" style="--g1:#43e0ee;--g2:#0d4a63"></i><b>Ночной город</b><small>сб · 482 193</small></div>
+          <div class="rb-item"><i class="rb-cover" style="--g1:#ffd36e;--g2:#c2410c"></i><b>До рассвета</b><small>вс · публичная</small></div>
+        </div>
+        <div class="media-foot"><span>Повторить вечер — в один клик.</span><span class="mini-pills"><b>История</b><b class="on">Повторить</b></span></div>
+      </div>
+    </div>
+
+    <div class="card-wrap" data-ch="11">
+      <article class="card" data-test="card" data-chapter="11">
+        <div class="card-eyebrow"><i class="dot"></i>11 / Все детали вместе</div>
+        <h2 class="card-title">Все детали.</h2>
+        <p class="card-sub">Твоя музыка.</p>
+        <p class="card-text">Комнаты, чат, профили, кастомизация — всё собирается в&nbsp;одно. В&nbsp;Flow.</p>
+        <a class="pill-btn" href="https://flowww.space" target="_blank" rel="noopener">Все возможности <span class="arr">↗</span></a>
+        <div class="card-fact"><b class="fact-num fact-num--logo">flow</b><span class="fact-label">всё в одном</span><i class="diamond"></i></div>
+      </article>
+      <div class="media">
+        <div class="media-cap"><span>Комната 482 193 · чат</span><i class="media-ico">↻</i></div>
+        <div class="media-panel chat">
+          <div class="bubble"><i style="--a:#43e0ee">А</i><p><b>Аня</b>ставь следующий, этот на повтор</p></div>
+          <div class="bubble"><i style="--a:#ffcc66">М</i><p><b>Макс</b>уже в очереди</p></div>
+          <div class="bubble bubble--me"><p>все на одной секунде</p></div>
+        </div>
+        <div class="media-foot"><span>Комнаты, чат и профили — в одном окне.</span><span class="mini-pills"><b>Чат</b><b class="on">Комната</b></span></div>
+      </div>
+    </div>
+
+    <div class="card-wrap" data-ch="12">
+      <article class="card" data-test="card" data-chapter="12">
+        <div class="card-eyebrow"><i class="dot"></i>12 / Слушайте вместе</div>
+        <h2 class="card-title">Включай.</h2>
+        <p class="card-sub">Зови своих.</p>
+        <p class="card-text">Flow для Windows и&nbsp;macOS.</p>
+        <div class="btn-row">
+          <a class="pill-btn pill-btn--solid" data-test="download" href="https://flowww.space" target="_blank" rel="noopener">Скачать для Windows <span class="arr">↗</span></a>
+          <a class="pill-btn" data-test="download" href="https://flowww.space" target="_blank" rel="noopener">Скачать для macOS <span class="arr">↗</span></a>
+        </div>
+        <div class="card-fact"><b class="fact-num fact-num--url">flowww.space</b><span class="fact-label">сайт</span><i class="diamond"></i></div>
+      </article>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============ обвязка ============ -->
+<header class="chrome site-head">
+  <a class="brand" href="#top" data-goto="top" aria-label="Flow — в начало">
+    <span class="brand-logo">flow</span>
+    <span class="brand-tag">A study<br>in sound</span>
+  </a>
+  <nav class="menu" id="menu" aria-label="Главы">
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="menu-list">Меню</button>
+    <div class="menu-list" id="menu-list">
+      <a href="#ch-1" data-goto="1" data-test="menu-link" data-chapter="1">Наушники</a>
+      <a href="#ch-8" data-goto="8" data-test="menu-link" data-chapter="8">Внутри Flow</a>
+      <a href="#ch-5" data-goto="5" data-test="menu-link" data-chapter="5">Возможности</a>
+      <a class="menu-cta" href="#ch-12" data-goto="12" data-test="menu-link" data-chapter="12">Скачать <span class="arr">↗</span></a>
+    </div>
+  </nav>
+</header>
+
+<nav class="chrome rail" id="rail" aria-label="Прогресс по главам">
+  <button class="rail-top" type="button" data-goto="1" aria-label="К первой главе"><i></i></button>
+  <div class="rail-dots" id="rail-dots"></div>
+</nav>
+
+<div class="chrome counter" id="counter" data-test="counter" aria-live="polite">
+  <span class="counter-num" id="counter-num">01 / 12</span>
+  <span class="counter-name" id="counter-name">Звук</span>
+</div>
+
+<button class="chrome scroll-hint" id="scroll-hint" type="button" data-test="to-top">
+  <span class="mouse"><i></i></span>
+  <span class="hint-label hint-next">Листай дальше</span>
+  <span class="hint-label hint-top">В начало</span>
+</button>
+
+<div class="chrome progress-line" aria-hidden="true"><i id="progress-fill"></i></div>
+
+<!-- ============ интро ============ -->
+<div id="intro" class="intro">
+  <div class="intro-beam" id="intro-beam" aria-hidden="true">
+    <div class="intro-words" id="intro-words">
+      <div class="iw-row">Flow Flow Flow Flow Flow</div>
+      <div class="iw-row">Flow Flow Flow Flow Flow</div>
+      <div class="iw-row">Flow Flow Flow Flow Flow</div>
+    </div>
+  </div>
+  <svg class="intro-cup" id="intro-cup" viewBox="-80 -80 160 160" width="160" height="160" aria-hidden="true" focusable="false">
+    <g class="cup-pulse">
+      <path class="cup-band" id="cup-band" d="M -4 -30 C -4 -58, -26 -70, -52 -62" pathLength="100"/>
+      <rect class="cup-pad" id="cup-pad" x="14" y="-28" width="14" height="56" rx="7"/>
+      <rect class="cup-body" id="cup-body" x="-32" y="-20" width="64" height="40" rx="8"/>
+    </g>
+  </svg>
+  <div class="intro-fill" id="intro-fill" aria-hidden="true"></div>
+  <button class="intro-skip" id="intro-skip" type="button">Пропустить интро <span class="arr">↗</span></button>
+</div>
+
+<div class="grain" aria-hidden="true"></div>
+
+<!-- высокий трек: 14 экранов, по одному на главу -->
+<main id="track" class="track">
+  <section id="ch-0" class="track-ch" aria-label="Интро"></section>
+  <section id="ch-1" class="track-ch" aria-label="Звук"></section>
+  <section id="ch-2" class="track-ch" aria-label="Подпись"></section>
+  <section id="ch-3" class="track-ch" aria-label="Тишина"></section>
+  <section id="ch-4" class="track-ch" aria-label="Касание"></section>
+  <section id="ch-5" class="track-ch" aria-label="Комната"></section>
+  <section id="ch-6" class="track-ch" aria-label="Источники"></section>
+  <section id="ch-7" class="track-ch" aria-label="Чат"></section>
+  <section id="ch-8" class="track-ch" aria-label="Внутри"></section>
+  <section id="ch-9" class="track-ch" aria-label="Драйвер"></section>
+  <section id="ch-10" class="track-ch" aria-label="История"></section>
+  <section id="ch-11" class="track-ch" aria-label="Вместе"></section>
+  <section id="ch-12" class="track-ch" aria-label="Скачать"></section>
+  <section id="ch-13" class="track-ch" aria-label="Финал"></section>
+</main>
+
+<script type="module" onerror="window.__flowFail && window.__flowFail()">
+//@@SCRIPT@@
+</script>
+<script>
+/* страховка: если модуль (three с CDN) не загрузился — статичная раскладка с текстами и рабочей навигацией.
+   Включается сразу по ошибке загрузки модуля, иначе — через 6 с, если приложение так и не стартовало */
+(function () {
+  var r = document.documentElement;
+  var fail = window.__flowFail = function () {
+    if (window.__flow || window.__flowFallback) return;
+    window.__flowFallback = true;
+    r.classList.add('no-3d', 'no-js-fallback');
+    // «Скачать» в меню ведёт в главу 12 — в статичной раскладке пусть ведёт прямо на сайт
+    var cta = document.querySelector('.menu-cta');
+    if (cta) { cta.href = 'https://flowww.space'; cta.target = '_blank'; cta.rel = 'noopener'; }
+  };
+  // ошибка разрешения модулей (importmap / specifier) до старта приложения
+  window.addEventListener('error', function (e) {
+    if (!window.__flow && e && /module|import/i.test(String(e.message || ''))) fail();
+  });
+  setTimeout(function () { if (!r.dataset.ready && !window.__flow) fail(); }, 6000);
+  // пока модуль грузится, «Пропустить интро» сразу открывает статичную раскладку;
+  // если модуль всё же придёт, приложение стартует с главы 1
+  var skip = document.getElementById('intro-skip');
+  if (skip) skip.addEventListener('click', function () { if (!window.__flow) { window.__flowSkip = true; fail(); } });
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.addEventListener('click', function (e) {
+    if (!r.classList.contains('no-js-fallback') || !e.target.closest) return;
+    var menu = document.getElementById('menu'), tg = e.target.closest('.menu-toggle');
+    if (tg) {
+      var open = !menu.classList.contains('is-open');
+      menu.classList.toggle('is-open', open); tg.setAttribute('aria-expanded', String(open));
+      return;
+    }
+    if (menu && !menu.contains(e.target)) { menu.classList.remove('is-open'); var t0 = menu.querySelector('.menu-toggle'); if (t0) t0.setAttribute('aria-expanded', 'false'); }
+    var a = e.target.closest('[data-goto]');
+    if (!a || a.classList.contains('menu-cta')) return;
+    e.preventDefault();
+    if (menu) { menu.classList.remove('is-open'); var t1 = menu.querySelector('.menu-toggle'); if (t1) t1.setAttribute('aria-expanded', 'false'); }
+    var g = a.getAttribute('data-goto');
+    if (g === 'top') { window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' }); return; }
+    var n = Math.max(1, Math.min(12, parseInt(g, 10) || 1));
+    var el = document.querySelector('.card-wrap[data-ch="' + n + '"]');
+    if (el) el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  });
+})();
+</script>
+</body>
+</html>

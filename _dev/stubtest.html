@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flow — scene test</title>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<style>
+html, body { margin: 0; height: 100%; background: radial-gradient(120% 90% at 60% 45%, #ffa12e 0%, #f2690f 45%, #b8370a 100%); overflow: hidden; }
+#scene { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<script type="module">
+// Заглушка headphones.js: вращающийся тор вместо наушников, тот же контракт.
+import * as THREE from 'three';
+
+function createHeadphonesScene(canvas) {
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+  camera.position.set(0, 0, 8);
+  scene.add(new THREE.HemisphereLight(0xffc08a, 0x221008, 1.2));
+  const rim = new THREE.DirectionalLight(0x45e6ff, 3); rim.position.set(-3, 2, -4); scene.add(rim);
+  const mesh = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.35, 32, 96), new THREE.MeshStandardMaterial({ color: 0x1c1d22, metalness: 0.6, roughness: 0.35 }));
+  scene.add(mesh);
+  let progress = 0;
+  function resize() {
+    const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  function frame() {
+    mesh.rotation.y = progress * Math.PI * 4;
+    mesh.position.x = 1.5;
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+  resize(); frame();
+  return {
+    setProgress(p) { progress = p; },
+    resize,
+    setPointer() {},
+    dispose() { renderer.dispose(); },
+  };
+}
+
+
+// Заглушка app.js для проверки сцены отдельно от вёрстки.
+// ?p=0..1 — глобальный прогресс, ?ch=N — центр главы N (0 = интро, 1..12 главы, 13 = финал)
+{
+  const qs = new URLSearchParams(location.search);
+  const CHAPTERS = 14;
+  let p = 0;
+  if (qs.has('p')) p = parseFloat(qs.get('p'));
+  else if (qs.has('ch')) p = (parseInt(qs.get('ch'), 10) + 0.5) / CHAPTERS;
+  const canvas = document.getElementById('scene');
+  if (typeof createHeadphonesScene === 'function') {
+    const scene = createHeadphonesScene(canvas);
+    scene.setProgress(p);
+    addEventListener('resize', () => scene.resize());
+  }
+  requestAnimationFrame(() => requestAnimationFrame(() => { document.documentElement.dataset.ready = '1'; }));
+}
+
+</script>
+</body>
+</html>

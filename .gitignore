@@ -1,0 +1,7 @@
+remote.local.ps1
+dist/
+_shots*/
+_test*/
+_ref/
+_dev/shots/
+*.log

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flow — scene test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap" rel="stylesheet">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<style>
+/*@@STYLES@@*/
+.hp-dbg-o { position: fixed; border: 2px dashed rgba(255,255,255,.6); border-radius: 50%; pointer-events: none; }
+.hp-dbg-a { position: fixed; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px #000; font: 10px/1 sans-serif; color: #fff; }
+.hp-dbg-a span { position: absolute; left: 12px; top: 0; white-space: nowrap; text-shadow: 0 0 2px #000; }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<script type="module">
+//@@SCRIPT@@
+</script>
+</body>
+</html>

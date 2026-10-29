@@ -1,0 +1,2 @@
+html, body { margin: 0; height: 100%; background: radial-gradient(120% 90% at 60% 45%, #ffa12e 0%, #f2690f 45%, #b8370a 100%); overflow: hidden; }
+#scene { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
