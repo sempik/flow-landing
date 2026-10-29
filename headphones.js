@@ -411,7 +411,8 @@ function createHeadphonesScene(canvas) {
     // сатиновый анодированный металл: шероховатость выше и приглушённые отражения, без перламутра по рёбрам
     alu: new THREE.MeshPhysicalMaterial({ color: ALU, metalness: 1, roughness: 0.42, envMapIntensity: 0.85 }),
     steel: new THREE.MeshStandardMaterial({ color: 0xe8e9ef, metalness: 1, roughness: 0.12 }),
-    knit: new THREE.MeshPhysicalMaterial({ color: 0x9182b6, metalness: 0, roughness: 0.92, sheen: 1, sheenColor: new THREE.Color(0xcdb9ff), sheenRoughness: 0.45, normalMap: knitPad, normalScale: new THREE.Vector2(0.9, 0.9) }),
+    // ткань амбушюров — в тон алюминию или чуть темнее: база темнее и насыщеннее, блеск ворса слабее (иначе подушки белеют)
+    knit: new THREE.MeshPhysicalMaterial({ color: 0x6d5d9c, metalness: 0, roughness: 0.92, sheen: 0.5, sheenColor: new THREE.Color(0xa38ce4), sheenRoughness: 0.5, normalMap: knitPad, normalScale: new THREE.Vector2(0.9, 0.9) }),
     padInR: new THREE.MeshStandardMaterial({ color: 0xffffff, map: sideTex.R, normalMap: knitIn, normalScale: new THREE.Vector2(0.7, 0.7), roughness: 0.92, emissive: 0x9d6fff, emissiveIntensity: 0 }),
     padInL: new THREE.MeshStandardMaterial({ color: 0xffffff, map: sideTex.L, normalMap: knitIn, normalScale: new THREE.Vector2(0.7, 0.7), roughness: 0.92 }),
     canopy: new THREE.MeshStandardMaterial({ color: 0xa496c8, alphaMap: meshA, transparent: true, depthWrite: false, normalMap: meshN, normalScale: new THREE.Vector2(0.8, 0.8), metalness: 0.1, roughness: 0.75, side: DS }),
@@ -670,7 +671,8 @@ function createHeadphonesScene(canvas) {
     shell: 0.95, ring: 1.1, mic0: 0.95, mic1: 0.98, mic2: 0.92, crown: 1.0, button: 0.98, usb: 0.92, usbTongue: 0.98, led: 0.95,
     pivot: 0.4, knuckle: 0.5, arm: 0.25, stem: 0.12, anchor: 0.05,
   };
-  const UP = { pivot: 0.3, knuckle: 0.5, arm: 0.72, stem: 0.95, anchor: 1.05, crown: 0.35, button: 0.3, mic0: 0.25, mic1: -0.1, mic2: -0.3, usb: -0.3, usbTongue: -0.36, led: -0.3 };
+  // штанги/гильзы поднимаются умеренно — выше не залезают на слово «ВНУТРИ» над объектом (гл. 8)
+  const UP = { pivot: 0.2, knuckle: 0.25, arm: 0.3, stem: 0.38, anchor: 0.42, crown: 0.25, button: 0.3, mic0: 0.25, mic1: -0.1, mic2: -0.3, usb: -0.3, usbTongue: -0.36, led: -0.3 };
   // [доля пути к камере, доп. сдвиг по y, доп. сдвиг по x]
   // левая чашка — выше и левее центра низа, мимо пилюли счётчика глав
   const FLY_BIG = { 'R.pad': [0.36, -0.55, 0.1], 'L.pad': [0.26, -0.3, 0.25], 'L.shell': [0.24, -0.12, -0.05] };
@@ -693,11 +695,15 @@ function createHeadphonesScene(canvas) {
       // объём: слои чашки расходятся не в одну «инженерную» линию, а вверх-вниз и по глубине
       ex.y += (hpRand(i, 17) - 0.5) * (big ? 0.9 : 0.6);
       ex.z += (hpRand(i, 18) - 0.5) * (big ? 0.8 : 0.6);
+      // потолок разлёта: детали не поднимаются выше верха дуги в сборе
+      ex.y = Math.min(ex.y, 0.95 - pt.rp.y);
     } else if (pt.cable) {
       ex.set(1.2, -0.55, 0.35).addScaledVector(rnd, 0.25);
     } else {
-      // оголовье: рама вверх, гамак чуть ниже и вперёд
-      ex.set(0, pt.name === 'band' ? 0.66 : 0.3, pt.name === 'canopy' ? 0.3 : 0).addScaledVector(rnd, 0.06);
+      // оголовье: рама уходит назад и чуть вниз, гамак — вперёд и вниз; вверх не летят —
+      // над объектом крупное слово «ВНУТРИ» (гл. 8), разлёт не должен его перекрывать
+      if (pt.name === 'band') ex.set(0, -0.28, -0.7); else ex.set(0, -0.14, 0.25);
+      ex.addScaledVector(rnd, 0.06);
     }
     pt.ex = ex;
     pt.dist = big ? 0.35 + 0.35 * hpRand(i, 4) : 0.75 + 1.25 * hpRand(i, 4);
@@ -707,6 +713,8 @@ function createHeadphonesScene(canvas) {
     pt.delay = hpRand(i, 11);
     pt.fly = has(pt, 'cam') && hpRand(i, 12) < 0.75 ? 0.3 + 0.28 * hpRand(i, 13) : 0;
     // несколько крупных деталей подлетают к камере (вниз, мимо карточки) — разлёт ломает кадр, как в референсе
+    // мелочь из верхней половины к камере не летит: подлёт уводит её вверх, на слово «ВНУТРИ»
+    if (pt.rp.y + ex.y > 0) pt.fly = 0;
     if (FLY_BIG[pt.name]) { pt.fly = FLY_BIG[pt.name][0]; ex.y += FLY_BIG[pt.name][1]; ex.x += FLY_BIG[pt.name][2]; }
     // «уход за кадр» (гл. 9–10): в мировых координатах — вправо, вверх/вниз и глубоко назад, мимо карточки
     pt.wsc = new V3(0.6 + 2.6 * hpRand(i, 14), (hpRand(i, 15) - 0.5) * 3.6, -(6 + 8 * hpRand(i, 16)));
@@ -762,12 +770,14 @@ function createHeadphonesScene(canvas) {
     { f: 'cupL', sx: -0.05, sy: -0.13, z: 6.3, s: 1, rx: 6, ry: 68, rz: -6, msx: 0, msy: 0.4, ms: 0.8 },
     // левее рейки точек справа
     { f: 'padR', sx: 0.15, sy: -0.4, z: 5.85, s: 1, rx: 0, ry: -148, rz: -10, px: 8, sw: -1, msx: 0.05, msy: 0.38, ms: 0.75 },
-    // вид сверху-сбоку на Digital Crown; канопи начинается ниже меню (на мобилке — ниже шапки)
-    { f: 'touch', sx: 0.3, sy: -0.37, z: 3.2, s: 1, rx: 0, ry: -118, rz: -4, px: 38, tc: 1, msx: 0, msy: 0.2, ms: 0.64 },
+    // вид сверху-сбоку на Digital Crown: внешняя грань правой чашки к камере, Crown — справа сверху на кромке,
+    // дальняя чашка и дуга уходят влево-вверх — справа над Crown пусто, пин «Колёсико и кнопка» не ложится на объект
+    { f: 'touch', sx: 0.36, sy: -0.25, z: 2.6, s: 1, rx: 0, ry: -62, rz: 4, px: 38, tc: 1, msx: 0, msy: 0.2, ms: 0.64 },
     // меньше — между плашкой кода комнаты и чашкой остаётся воздух
     { f: 'center', sx: 0.36, sy: -0.14, z: 0.4, s: 0.8, rx: 12, ry: -112, rz: 6, sw: 0.55, msy: 0.26, ms: 0.75 },
-    // оголовье ниже меню
-    { f: 'padR', sx: 0.52, sy: -0.2, z: 2.3, s: 1, rx: 0, ry: -30, rz: 0, px: 4, sw: 1.33, gr: 1, msx: 0, msy: 0.4, ms: 0.8 },
+    // орбита источников: объект целиком внутри кольца чипов (чипы — по диагоналям вокруг центра модели),
+    // поэтому на десктопе он меньше и по центру орбиты; на мобилке — прежний кадр (mf/mz)
+    { f: 'center', sx: 0.29, sy: 0, z: 0, s: 0.76, rx: 0, ry: -30, rz: 0, px: 4, sw: 1.33, gr: 1, msx: 0, msy: 0.4, ms: 0.8 / 0.76, mf: 'padR', mz: 1.15 },
     { f: 'jack', sx: 0.3, sy: -0.02, z: 2.4, s: 1, rx: -6, ry: -140, rz: 4, px: -30, cb: 1, msx: 0, msy: 0.5, ms: 0.8 },
     { f: 'center', sx: 0.31, sy: -0.04, z: 0, s: 0.92, rx: 14, ry: 22, rz: -6, e: 1, msx: 0.08, msy: 0.24, ms: 0.4 },
     { f: 'center', sx: 0.31, sy: -0.02, z: 0, s: 0.92, rx: 16, ry: 40, rz: -6, e: 1, aw: 1, h1: 1 },
@@ -800,7 +810,9 @@ function createHeadphonesScene(canvas) {
       out.sx = k.msx !== undefined ? k.msx : 0;
       out.sy = k.msy !== undefined ? k.msy : 0.42;
       out.s = k.s * (k.ms !== undefined ? k.ms : 0.62);
-      out.z = (k.z || 0) * 0.5;
+      out.z = k.mz !== undefined ? k.mz : (k.z || 0) * 0.5;
+      // своя точка фокуса для мобильной раскладки
+      if (k.mf) { out.fs = SWF[k.mf] || 0; out.fv.copy(FOCI[k.mf]); }
     } else {
       out.s *= Math.min(1.06, Math.max(0.72, aspect / 1.78));
       if (H < 480) {

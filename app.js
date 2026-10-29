@@ -66,15 +66,28 @@
     const pc = $('#parts-count');
     if (pc) pc.textContent = String(scene.partCount);
   }
+  // холст сцены можно чуть ужать CSS-трансформом (гл. 3 и 8, см. applyStage) — тогда точки якорей
+  // из системы холста переводим в экранные тем же масштабом вокруг той же опорной точки
+  const stage = { s: 1, ox: 0, oy: 0 };
+  const toScreen = (a) => (stage.s === 1 ? a
+    : { x: stage.ox + (a.x - stage.ox) * stage.s, y: stage.oy + (a.y - stage.oy) * stage.s, visible: a.visible });
   const anchorOf = (name, fallback) => {
     if (scene && scene.getAnchor) {
       try {
         let a = scene.getAnchor(name);
         if ((!a || !a.visible) && fallback) a = scene.getAnchor(fallback);
-        if (a && Number.isFinite(a.x) && Number.isFinite(a.y)) return a;
+        if (a && Number.isFinite(a.x) && Number.isFinite(a.y)) return toScreen(a);
       } catch (e) { /* без якоря */ }
     }
     return { x: W * 0.68, y: H * 0.56, visible: !scene };
+  };
+  // точка детали без проверки видимости (для раскладки чипов по силуэту)
+  const rawAnchor = (name) => {
+    if (!scene || !scene.getAnchor) return null;
+    try {
+      const a = scene.getAnchor(name);
+      return a && Number.isFinite(a.x) && Number.isFinite(a.y) ? toScreen(a) : null;
+    } catch (e) { return null; }
   };
 
   // ---------- разбивка слов на буквы ----------
@@ -135,11 +148,19 @@
   // нижний счётчик глав: подпись под объектом его обходит
   const counterEl = $('[data-test="counter"]');
   let counterBox = null;
-  const pins = $$('.anchor-layer .pin, .anchor-layer .anchored').map((el) => ({
-    el, ch: +el.dataset.ch, anchor: el.dataset.anchor, fallback: el.dataset.fallback || 'center', place: el.dataset.place || '',
-  }));
+  const anchorLayer = $('.anchor-layer');
+  const pins = $$('.anchor-layer .pin, .anchor-layer .anchored').map((el) => {
+    const pn = { el, ch: +el.dataset.ch, anchor: el.dataset.anchor, fallback: el.dataset.fallback || 'center', place: el.dataset.place || '' };
+    // подпись сбоку от детали стоит за силуэтом объекта, к самой точке ведёт тонкая линия-выноска
+    if (pn.place === 'side') {
+      pn.lead = document.createElement('i');
+      pn.lead.className = 'pin-lead';
+      anchorLayer.insertBefore(pn.lead, anchorLayer.firstChild);
+    }
+    return pn;
+  });
   const orbitEl = $('.orbit');
-  const orbit = { el: orbitEl, ch: +orbitEl.dataset.ch, anchor: orbitEl.dataset.anchor, fallback: orbitEl.dataset.fallback, chips: $$('.chip', orbitEl) };
+  const orbit = { el: orbitEl, ch: +orbitEl.dataset.ch, anchor: orbitEl.dataset.anchor, fallback: orbitEl.dataset.fallback, chips: $$('.chip', orbitEl), side: '' };
   // размеры пинов/панелей/чипов меряем при старте и ресайзе, а не в каждом кадре (без форс-лейаута)
   const measureSizes = () => {
     for (const pn of pins) { pn.w = pn.el.offsetWidth; pn.h = pn.el.offsetHeight; }
@@ -171,6 +192,9 @@
   // ---------- интро ----------
   const intro = $('#intro'), beam = $('#intro-beam'), beamGlow = $('#intro-glow'), wordsBox = $('#intro-words'), rows = $$('.iw-row', intro);
   const cup = $('#intro-cup'), cupBody = $('#cup-body'), cupPad = $('#cup-pad'), cupBand = $('#cup-band'), fill = $('#intro-fill');
+  // стартовый кадр: знак ∞ на плитке, ореол и подпись «flow · a study in sound» — гаснут с первым движением
+  const cupInf = $('#cup-inf'), introHalo = $('#intro-halo'), introCap = $('#intro-cap');
+  const finaleCta = $('#finale-cta');
   let ipAuto = 0;
   // человек уже сам листал/жал клавиши: старт после шрифтов не сбрасывает его наверх
   let userActed = false;
@@ -292,10 +316,13 @@
     } catch (e) {
       gy = base - fs * 0.3; size = r.width * 0.9;
     }
-    // логотип сдвинут transform-ом вверх — rect его уже учитывает
-    const cr = canvas.getBoundingClientRect();
+    // логотип сдвинут transform-ом вверх — rect его уже учитывает.
+    // Координаты — в системе холста без CSS-масштаба (холст лежит на всю сцену), поэтому rect сцены
+    const cr = (stageEl || canvas).getBoundingClientRect();
     finaleTarget = { x: gx - cr.left, y: gy - cr.top, size };
     if (scene && scene.setFinaleTarget) { try { scene.setFinaleTarget(finaleTarget); } catch (e) { /* */ } }
+    // мобильный финал: под словом — призыв и кнопка «Скачать»
+    if (finaleCta) finaleCta.style.top = `${(base + fs * 0.26).toFixed(1)}px`;
   };
 
   // ---------- отрисовка интро ----------
@@ -322,6 +349,14 @@
     cupPad.setAttribute('height', lerp(30, 58, m).toFixed(2));
     cupPad.setAttribute('y', (-lerp(30, 58, m) / 2).toFixed(2));
     cupBand.style.strokeDashoffset = String(100 * (1 - smooth(0.14, 0.36, ip)));
+    // стартовая плитка — иконка Flow: ∞ на ней, ореол и подпись под ней уходят, как только плитка начинает морф
+    if (cupInf) cupInf.style.opacity = (1 - smooth(0.01, 0.08, ip)).toFixed(3);
+    if (introHalo) introHalo.style.opacity = (1 - smooth(0.02, 0.3, ip)).toFixed(3);
+    if (introCap) {
+      const co = 1 - smooth(0, 0.09, ip);
+      introCap.style.opacity = co.toFixed(3);
+      introCap.style.transform = `translateY(${((1 - co) * 14).toFixed(1)}px)`;
+    }
     // апекс конуса: правый край амбушюра
     const rr = (rot * Math.PI) / 180;
     const lx = 13.5 + pw;
@@ -415,6 +450,17 @@
       L.style.opacity = e.toFixed(3);
     });
   };
+  let ctaO = '';
+  const renderFinaleCta = (d) => {
+    if (!finaleCta) return;
+    const o = smooth(-0.45, -0.08, d), os = o.toFixed(3);
+    if (os === ctaO) return;
+    ctaO = os;
+    finaleCta.style.opacity = os;
+    finaleCta.style.visibility = o > 0.01 ? 'visible' : 'hidden';
+    finaleCta.style.transform = `translateY(${((1 - o) * 18).toFixed(1)}px)`;
+    finaleCta.classList.toggle('is-live', o > 0.5);
+  };
 
   // ---------- карточки ----------
   const renderCard = (c, d) => {
@@ -459,7 +505,11 @@
     for (const pn of pins) {
       const d = chF - (pn.ch + 0.5);
       let v = 1 - smooth(0.16, 0.46, Math.abs(d));
-      if (v <= 0.001) { if (pn.el.style.visibility !== 'hidden') pn.el.style.visibility = 'hidden'; continue; }
+      if (v <= 0.001) {
+        if (pn.el.style.visibility !== 'hidden') pn.el.style.visibility = 'hidden';
+        if (pn.lead && pn.lead.style.visibility !== 'hidden') pn.lead.style.visibility = 'hidden';
+        continue;
+      }
       const a = anchorOf(pn.anchor, pn.fallback);
       if (!a.visible) v = 0;
       let x = a.x, y = a.y;
@@ -478,12 +528,19 @@
         y += (1 - v) * 24;
       } else {
         // pin: якорь — центр «+» (margin -17px). below — подпись под объектом, side — сбоку от детали
+        const side = pn.place === 'side';
         if (pn.place === 'below') { x = a.x - w / 2 + 17; y = a.y + H * (mob ? 0.17 : H < 480 ? 0.34 : 0.3); }
-        else if (pn.place === 'side') { x = a.x + Math.min(W, H) * 0.17; y = a.y - H * 0.1; }
+        else if (side) {
+          // за силуэтом объекта: на десктопе — правее оголовья над колёсиком, на мобилке — в пустом углу
+          // справа сверху (правее оголовья, над ближней чашкой), к точке ведёт выноска
+          if (mob) { x = W - 10 - w + 17; y = a.y - H * 0.14; }
+          else { x = a.x + Math.min(W, H) * 0.2; y = a.y - H * 0.1; }
+        }
         const pLo = mob ? 34 : Math.max(34, xLo + 17);
         // низкий альбом (телефон боком): сцена ставит объект выше, подпись уходит под него почти до низа
         const low = !mob && H < 480;
-        x = clamp(x, pLo, Math.max(pLo, W - w - (mob ? 12 : 60))); y = clamp(y, low ? 60 : 100, Math.max(100, mob ? H * 0.6 : low ? H - h + 17 - 14 : H - 110));
+        const pHi = side && mob ? W - 10 - w + 17 : W - w - (mob ? 12 : 60);
+        x = clamp(x, pLo, Math.max(pLo, pHi)); y = clamp(y, low ? 60 : 100, Math.max(100, mob ? H * 0.6 : low ? H - h + 17 - 14 : H - 110));
         // и не ложится на счётчик глав: если пересекаются — сдвигаем левее счётчика (бокс пина = x−17, y−17)
         if (low && counterBox && y - 17 + h > counterBox.t - 6 && x - 17 + w > counterBox.l - 12 && x - 17 < counterBox.r) {
           x = Math.max(pLo, counterBox.l - 12 - w + 17);
@@ -494,29 +551,98 @@
       if (pn.el.style.visibility !== vs) pn.el.style.visibility = vs;
       pn.el.style.opacity = v.toFixed(3);
       placeEl(pn.el, x, y);
+      if (pn.lead) {
+        // выноска: от точки детали (кольцо) к «+» подписи, не доходя до него 15 px
+        const dx = x - a.x, dy = y - a.y, len = Math.hypot(dx, dy) - 15;
+        const ls = vs === 'visible' && len > 8 ? 'visible' : 'hidden';
+        if (pn.lead.style.visibility !== ls) pn.lead.style.visibility = ls;
+        if (ls === 'visible') {
+          pn.lead.style.opacity = v.toFixed(3);
+          pn.lead.style.width = `${len.toFixed(1)}px`;
+          pn.lead.style.transform = `translate3d(${a.x.toFixed(1)}px, ${a.y.toFixed(1)}px, 0) rotate(${Math.atan2(dy, dx).toFixed(4)}rad)`;
+        }
+      }
     }
     // орбита источников
     const d = chF - (orbit.ch + 0.5);
     const v = 1 - smooth(0.12, 0.5, Math.abs(d));
     if (v <= 0.001) { if (orbit.el.style.visibility !== 'hidden') orbit.el.style.visibility = 'hidden'; return; }
-    const a = anchorOf(orbit.anchor, orbit.fallback);
     if (orbit.el.style.visibility !== 'visible') orbit.el.style.visibility = 'visible';
-    const R = Math.min(W, H) * (isMobile() ? 0.3 : 0.33) * (0.8 + 0.2 * v);
-    const cx = clamp(a.x, R * 0.6, W - R * 0.6), cy = a.y;
-    // чипы стоят по четырём «диагоналям» вокруг чашки и лишь покачиваются — так ни один не наезжает
-    // на дугу вилки и стойку оголовья; полный оборот даёт только скролл через главу
-    const spin = (reduced ? 0 : Math.sin(time * 0.35) * 10) + d * 50;
-    const base = [-40, 40, 140, -140];
-    const cLo = isMobile() ? 12 : Math.max(12, cardRight + 12);
+    // чипы стоят за силуэтом наушников, а не на нём: размер чашки на экране оцениваем по расстоянию
+    // между якорями чашек. Десктоп — две колонки по бокам (слева Jamendo/Audius, справа Яндекс/SoundCloud),
+    // мобилка — две строки под объектом. Чипы выезжают от чашки наружу и слегка покачиваются
+    const mob = isMobile();
+    const c0 = anchorOf(orbit.anchor, orbit.fallback);
+    let cl = rawAnchor('cupLeft'), cr = rawAnchor('cupRight');
+    if (!cl || !cr) { cl = { x: c0.x - W * 0.12, y: c0.y }; cr = { x: c0.x + W * 0.12, y: c0.y }; }
+    const lx = Math.min(cl.x, cr.x), rx = Math.max(cl.x, cr.x);
+    const hw = Math.max((rx - lx) * 0.36, Math.min(W, H) * 0.09), hh = hw * 1.25;
+    const side = mob ? 'b' : 'lr';
+    if (side !== orbit.side) {
+      orbit.side = side;
+      orbit.chips.forEach((chip, i) => {
+        chip.classList.toggle('chip--r', !mob && i < 2);
+        chip.classList.toggle('chip--l', !mob && i >= 2);
+      });
+    }
+    const cLo = mob ? 12 : Math.max(12, cardRight + 12);
+    const gapOut = 30;
+    // мобилка: строка 1 — Яндекс Музыка + SoundCloud, строка 2 — Audius + Jamendo, по центру экрана
+    const rowsY = mob ? Math.min(cr.y + hh + 22, H * 0.6 - 2 * (orbit.chips[0]._h || 30) - 10) : 0;
     orbit.chips.forEach((chip, i) => {
       const vi = clamp(v * 1.6 - i * 0.15);
-      const ang = ((base[i] + spin) * Math.PI) / 180;
       const w = chip._w, h = chip._h;
-      let x = cx + Math.cos(ang) * R * 1.12 - w / 2, y = cy + Math.sin(ang) * R * (isMobile() ? 0.78 : 0.9) - h / 2;
-      x = clamp(x, cLo, Math.max(cLo, W - w - (isMobile() ? 56 : 90))); y = clamp(y, 90, Math.max(90, H - h - 80));
+      const bob = reduced ? 0 : Math.sin(time * 1.1 + i * 1.7) * 4;
+      let x, y;
+      if (mob) {
+        const pair = i < 2 ? [0, 1] : [2, 3];
+        const rowW = orbit.chips[pair[0]]._w + orbit.chips[pair[1]]._w + 8;
+        x = (W - rowW) / 2 + (i % 2 ? orbit.chips[pair[0]]._w + 8 : 0);
+        y = rowsY + (i < 2 ? 0 : h + 8) + (1 - vi) * 14;
+        x = clamp(x, 12, Math.max(12, W - w - 12));
+      } else {
+        const right = i < 2, top = i === 0 || i === 3;
+        const g = gapOut * (0.35 + 0.65 * vi) + Math.abs(d) * 30;
+        x = right ? rx + hw + g : lx - hw - g - w;
+        // столбики слегка расходятся по вертикали при прокрутке — параллакс вместо вращения по орбите
+        y = (cl.y + cr.y) / 2 + (top ? -hh * 0.62 : hh * 0.42) - h / 2 + d * (right ? -40 : 40) + bob;
+        x = clamp(x, cLo, Math.max(cLo, W - w - 70)); y = clamp(y, 90, Math.max(90, H - h - 80));
+      }
       chip.style.opacity = vi.toFixed(3);
-      chip.style.transform = `translate3d(${x.toFixed(1)}px, ${(y + (1 - vi) * 16).toFixed(1)}px, 0) scale(${(0.85 + 0.15 * vi).toFixed(3)})`;
+      chip.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) scale(${(0.85 + 0.15 * vi).toFixed(3)})`;
     });
+  };
+
+  // ---------- масштаб холста в главе 3 ----------
+  // гл. 3 (макро амбушюра): объект чуть меньше и выше — низ амбушюра кончается над счётчиком глав.
+  // Масштаб плавно растёт от центров соседних глав к центру своей, догоняет прокрутку тем же lerp, что и сцена.
+  // Край ужатого холста растушёван маской, чтобы деталь, уходящая за кадр, не обрезалась прямой линией.
+  // top: true — опорная точка внизу (холст ужимается к низу), для глав, где мешает верх кадра
+  const ZONES = [{ c: 3.5, s: 0.915, top: false }];
+  let sP = -1, stageT = 0, stageKey = '', stageMask = '';
+  const applyStage = (p, time) => {
+    const dt = stageT ? clamp(time - stageT, 0, 0.1) : 0;
+    stageT = time;
+    if (sP < 0 || isTest || (reduced && Math.abs(p - sP) > 1 / N)) sP = p;
+    else { sP += (p - sP) * (1 - Math.pow(0.88, dt * 60)); if (Math.abs(p - sP) < 1e-5) sP = p; }
+    let s = 1, z = null;
+    if (scene && !isMobile()) {
+      const chS = sP * N;
+      for (const zn of ZONES) {
+        const b = 1 - smooth(0, 1, Math.abs(chS - zn.c));
+        if (b > 0) { s = 1 - (1 - zn.s) * b; z = zn; }
+      }
+    }
+    if (s > 0.9995) { s = 1; z = null; }
+    stage.s = s; stage.ox = W * 0.66; stage.oy = z && z.top ? H : 0;
+    const key = z ? `${s.toFixed(4)}|${stage.ox.toFixed(1)}|${stage.oy}` : '';
+    if (key !== stageKey) {
+      stageKey = key;
+      canvas.style.transformOrigin = z ? `${stage.ox.toFixed(1)}px ${stage.oy}px` : '';
+      canvas.style.transform = z ? `scale(${s.toFixed(4)})` : '';
+    }
+    const mk = !z ? '' : `linear-gradient(${z.top ? 'to top' : 'to bottom'}, #000 calc(100% - 48px), transparent)`;
+    if (mk !== stageMask) { stageMask = mk; canvas.style.webkitMaskImage = mk; canvas.style.maskImage = mk; }
   };
 
   // ---------- обвязка ----------
@@ -585,10 +711,12 @@
     if (reduced && lastP >= 0 && Math.abs(p - lastP) > 1 / N) fadeJump();
     if (scene && p !== lastP) { try { scene.setProgress(p); } catch (e) { /* */ } }
     lastP = p;
+    applyStage(p, time);
     renderIntro(ip);
     for (const c of cards) renderCard(c, chF - (c.ch + 0.5));
     for (const w of words) renderWord(w, chF - (w.ch + 0.5), false);
     renderFinale(chF - 13.5);
+    renderFinaleCta(chF - 13.5);
     renderPins(chF, time);
     renderChrome(p, chF, ip);
   };

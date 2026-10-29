@@ -229,12 +229,30 @@ function checkSnapshot(label, s) {
 
     // 6. Мобилка: загрузка с нуля и прокрутка
     page = await openPage(browser, { w: 390, h: 844, mobile: true, label: 'mobile' });
+    {
+      // первый экран: даём интро само доехать до главы 1 (1.2 с пауза + ~2 с луч + ~2.2 с доводка),
+      // иначе кадр ловит слово FLOW на середине выезда из-под маски
+      await sleep(6500);
+      const s0 = await snapshot(page);
+      checkSnapshot('mobile-старт', s0);
+      if (s0.state && s0.state.chapter !== 1) warn('mobile-старт', `после автоинтро глава ${s0.state.chapter}, ожидалась 1`);
+      await page.screenshot({ path: path.join(OUT, 'mobile_start.jpg'), type: 'jpeg', quality: 75 });
+    }
     for (let i = 0; i < 30; i++) {
       await page.evaluate(() => window.scrollBy(0, Math.round(innerHeight * 0.9)));
       await sleep(1300);
       const s = await snapshot(page);
       checkSnapshot('mobile-скролл', s);
-      if (i % 4 === 0) await page.screenshot({ path: path.join(OUT, `mobile_${String(i).padStart(2, '0')}.jpg`), type: 'jpeg', quality: 70 });
+      if (i % 4 === 0) {
+        // кадр для глаз — в покое главы: доводим до центра ближайшей главы и ждём, пока сцена и буквы встанут.
+        // Промежуточные позиции прокрутки (буквы на полпути из-под маски) проверяет checkSnapshot выше
+        if (s.state && s.state.chapter >= 1 && s.state.chapter <= 13) {
+          await page.evaluate((n) => window.__flow.goTo(n, { instant: true }), s.state.chapter);
+          await sleep(1600);
+          checkSnapshot('mobile-глава', await snapshot(page));
+        }
+        await page.screenshot({ path: path.join(OUT, `mobile_${String(i).padStart(2, '0')}.jpg`), type: 'jpeg', quality: 70 });
+      }
       if (s.scrollY >= s.maxScroll - 2) break;
     }
     await page.close();

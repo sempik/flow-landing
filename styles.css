@@ -107,6 +107,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 /* гаснет мгновенно (маска включается в тот же кадр), разгорается плавно */
 .giant-word.is-moving, .peek-word.is-moving { filter: drop-shadow(0 0 .2em rgba(139, 92, 246, 0)); transition: none; }
 .giant-word .gl-space { width: .3em; }
+/* гл. 8: слово чуть выше остальных гигантских — разлетающиеся детали и дуга оголовья его не задевают */
+.giant-word[data-ch="8"] { top: 12.5vh; }
 /* маска для появления/ухода букв: снизу — под базовую линию, сверху — над строкой */
 .giant-word.is-masked, .peek-word.is-masked { clip-path: inset(-.42em -12% -.16em -12%); }
 .peek-word {
@@ -130,6 +132,8 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .fl-hole { color: transparent; display: inline-block; margin: 0 -.13em; }
 .fl-baseline { display: inline-block; width: 0; height: 0; vertical-align: baseline; }
 .no-3d .fl-hole { color: transparent; -webkit-text-stroke: .012em rgba(196, 161, 255, .6); }
+/* призыв под финальным словом — только на телефоне в портрете (см. адаптив) */
+.finale-cta { display: none; }
 
 /* ---------- пины и якорные панели ---------- */
 .anchor-layer { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
@@ -180,6 +184,24 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   will-change: transform, opacity;
 }
 .chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
+/* чипы стоят сбоку от чашек: короткий «хвост» к объекту с точкой на конце */
+.chip--l::after, .chip--r::after {
+  content: ""; position: absolute; top: 50%; width: 22px; height: 1px; margin-top: -.5px; pointer-events: none;
+}
+.chip--r::after { right: 100%; background: linear-gradient(270deg, rgba(196, 161, 255, .55), rgba(196, 161, 255, 0)); }
+.chip--l::after { left: 100%; background: linear-gradient(90deg, rgba(196, 161, 255, .55), rgba(196, 161, 255, 0)); }
+
+/* выноска от точки детали к подписи: линия от кольца-точки, градиент к «+» */
+.pin-lead {
+  position: absolute; left: 0; top: 0; height: 1px; margin-top: -.5px; visibility: hidden; pointer-events: none;
+  transform-origin: 0 50%; will-change: transform, opacity;
+  background: linear-gradient(90deg, rgba(196, 161, 255, .25), rgba(196, 161, 255, .85));
+}
+.pin-lead::before {
+  content: ""; position: absolute; left: -5px; top: -4.5px; width: 10px; height: 10px; border-radius: 50%;
+  border: 1.5px solid var(--accent-light); background: rgba(157, 111, 255, .35);
+  box-shadow: 0 0 10px rgba(157, 111, 255, .9);
+}
 
 /* ---------- карточки ---------- */
 /* слой карточек — по «малому» вьюпорту, чтобы низ мобильной карточки не уходил под панель браузера */
@@ -396,7 +418,11 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .counter {
   left: 50%; bottom: clamp(18px, 3.6vh, 34px); transform: translateX(-50%);
   display: flex; align-items: center; gap: 11px; padding: 9px 18px 9px 14px;
-  border-radius: 999px; background: rgba(168, 85, 247, .12); border: 1px solid rgba(168, 85, 247, .28);
+  /* фиолетовый тон бейджа поверх почти непрозрачной тёмной подложки: на объекте (гл. 3) пилюля
+     читается как плашка, а не как полупрозрачное пятно на амбушюре */
+  border-radius: 999px; background: linear-gradient(rgba(168, 85, 247, .14), rgba(168, 85, 247, .14)), rgba(14, 11, 22, .86);
+  border: 1px solid rgba(168, 85, 247, .32);
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, .7);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   white-space: nowrap;
 }
@@ -449,6 +475,24 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .cup-band { fill: none; stroke: #9d6fff; stroke-width: 10; stroke-linecap: round; stroke-dasharray: 100 100; stroke-dashoffset: 100; }
 .cup-pulse { animation: cupPulse 1.6s ease-in-out infinite; transform-origin: 0 0; }
 @keyframes cupPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+/* стартовая плитка — как иконка Flow: знак ∞ на фиолетовом, ореол вокруг и подпись снизу */
+.cup-inf { fill: none; stroke: url(#cup-inf-grad); stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; }
+.intro-halo {
+  position: absolute; left: 50%; top: 50%; width: 440px; height: 440px; margin: -220px 0 0 -220px; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(157, 111, 255, .30), rgba(139, 92, 246, .11) 48%, rgba(139, 92, 246, 0) 100%);
+  pointer-events: none; animation: haloPulse 3.2s ease-in-out infinite;
+}
+@keyframes haloPulse { 0%, 100% { transform: scale(.9); } 50% { transform: scale(1.06); } }
+.intro-cap {
+  position: absolute; left: 0; right: 0; top: calc(50% + 50px);
+  display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none;
+}
+.ic-word {
+  font: 800 30px/1 var(--f-logo); letter-spacing: -.045em; padding: 0 .08em;
+  background: var(--grad-text); -webkit-background-clip: text; background-clip: text;
+  color: transparent; -webkit-text-fill-color: transparent;
+}
+.ic-tag { font: 600 10px/1 var(--f-ui); letter-spacing: .34em; padding-left: .34em; text-transform: uppercase; color: var(--dim); }
 .intro-fill { position: absolute; inset: 0; opacity: 0; }
 .intro-fill::before, .intro-fill::after { content: ""; position: absolute; inset: 0; }
 .intro-fill::before { background: var(--glows), var(--bg); }
@@ -578,9 +622,24 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   .fact-num { font-size: 19px; }
   .media { display: none; }
 
-  .giant-word { left: 3vw; right: 3vw; top: 11.5vh; font-size: 14vw; }
+  .giant-word, .giant-word[data-ch="8"] { left: 3vw; right: 3vw; top: 11.5vh; font-size: 14vw; }
   .peek-word { top: 9vh; font-size: 36vw; }
-  .finale-logo { font-size: 26vw; transform: translateY(-8vh); }
+  /* финал на телефоне: слово крупнее и выше, под ним — призыв и кнопка «Скачать» */
+  .finale-logo { font-size: 28vw; transform: translateY(-12vh); }
+  .finale-cta {
+    position: fixed; left: 16px; right: 16px; top: 60%; z-index: 10;
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    visibility: hidden; opacity: 0; pointer-events: none; will-change: transform, opacity;
+  }
+  .finale-cta.is-live { pointer-events: auto; }
+  .fc-title { margin: 0; font: 700 22px/1.15 var(--f-display); letter-spacing: -.035em; color: var(--text); }
+  .fc-title span {
+    background: var(--grad-text); -webkit-background-clip: text; background-clip: text;
+    color: transparent; -webkit-text-fill-color: transparent; padding-bottom: .06em;
+  }
+  .fc-text { margin: 8px 0 0; font: 400 13.5px/1.5 var(--f-ui); color: var(--muted); }
+  .finale-cta .pill-btn { margin-top: 18px; padding: 13px 20px 13px 22px; font-size: 14px; }
+  .fc-url { margin-top: 14px; font: 600 10px/1 var(--f-ui); letter-spacing: .2em; text-transform: uppercase; color: var(--dim); }
 }
 
 /* телефон в альбомной ориентации (844x390, 667x375…): карточка — узкая колонка слева на всю высоту,
@@ -601,7 +660,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   .fact-num--url { font-size: 13px; }
   .media { display: none; }
 
-  .giant-word { left: 50vw; right: 5vw; top: 52px; font-size: min(6.4vw, 12vh); }
+  .giant-word, .giant-word[data-ch="8"] { left: 50vw; right: 5vw; top: 52px; font-size: min(6.4vw, 12vh); }
   .peek-word { left: 44vw; right: 0; top: 54px; font-size: min(14vw, 28vh); }
   .finale-logo { font-size: min(21vw, 46vh); }
 
@@ -617,7 +676,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 html.no-js-fallback { overflow-y: auto; }
 .no-js-fallback #intro, .no-js-fallback .track, .no-js-fallback .scene, .no-js-fallback .giant-layer,
 .no-js-fallback .anchor-layer, .no-js-fallback .finale, .no-js-fallback .rail, .no-js-fallback .counter,
-.no-js-fallback .scroll-hint, .no-js-fallback .progress-line { display: none !important; }
+.no-js-fallback .scroll-hint, .no-js-fallback .progress-line, .no-js-fallback .finale-cta { display: none !important; }
 .no-js-fallback .stage { position: relative; height: auto; min-height: 100vh; overflow: visible; }
 .no-js-fallback .bg { position: fixed; }
 .no-js-fallback .card-layer {
@@ -633,10 +692,10 @@ html.no-js-fallback { overflow-y: auto; }
   html:not(.is-test) :is(.card, .menu-list, .pin, .chip, .room-panel, .media-panel, .rail, .counter) { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
   html:not(.is-test) .card { background: rgba(20, 17, 31, .96); }
   html:not(.is-test) .media-panel { background: rgba(20, 17, 31, .96); }
-  html:not(.is-test) :is(.eq i, .mouse i, .cup-pulse) { animation: none; }
+  html:not(.is-test) :is(.eq i, .mouse i, .cup-pulse, .intro-halo) { animation: none; }
   html:not(.is-test) .pill-btn, html:not(.is-test) .menu-list a,
   html:not(.is-test) .rail-dot::before, html:not(.is-test) .rail-dot::after { transition-duration: .15s; }
 }
 html.is-reduced :is(.card, .menu-list, .pin, .chip, .room-panel, .media-panel, .rail, .counter) { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 html.is-reduced .card { background: rgba(20, 17, 31, .96); }
-html.is-reduced :is(.eq i, .mouse i, .cup-pulse) { animation: none; }
+html.is-reduced :is(.eq i, .mouse i, .cup-pulse, .intro-halo) { animation: none; }

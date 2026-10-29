@@ -297,6 +297,14 @@
 
 <div class="chrome progress-line" aria-hidden="true"><i id="progress-fill"></i></div>
 
+<!-- финал на телефоне: под словом flow — призыв и кнопка (на десктопе скрыт) -->
+<div class="finale-cta" id="finale-cta">
+  <p class="fc-title">Слушайте <span>вместе.</span></p>
+  <p class="fc-text">Flow для Windows и macOS</p>
+  <a class="pill-btn pill-btn--solid" data-test="download" href="https://flowww.space" target="_blank" rel="noopener">Скачать Flow <span class="arr">↗</span></a>
+  <span class="fc-url">flowww.space</span>
+</div>
+
 <!-- ============ интро ============ -->
 <div id="intro" class="intro">
   <div class="intro-glow" aria-hidden="true"><i id="intro-glow"></i></div>
@@ -307,13 +315,21 @@
       <div class="iw-row">flow flow flow flow flow</div>
     </div>
   </div>
+  <div class="intro-halo" id="intro-halo" aria-hidden="true"></div>
   <svg class="intro-cup" id="intro-cup" viewBox="-80 -80 160 160" width="160" height="160" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="cup-inf-grad" x1="-17" y1="0" x2="17" y2="0" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#ede6ff"/><stop offset="1" stop-color="#d6c4ff"/>
+      </linearGradient>
+    </defs>
     <g class="cup-pulse">
       <path class="cup-band" id="cup-band" d="M -4 -30 C -4 -58, -26 -70, -52 -62" pathLength="100"/>
       <rect class="cup-pad" id="cup-pad" x="14" y="-28" width="14" height="56" rx="7"/>
       <rect class="cup-body" id="cup-body" x="-32" y="-20" width="64" height="40" rx="8"/>
+      <path class="cup-inf" id="cup-inf" d="M 0 0 C 5 -8, 17 -8, 17 0 C 17 8, 5 8, 0 0 C -5 -8, -17 -8, -17 0 C -17 8, -5 8, 0 0 Z"/>
     </g>
   </svg>
+  <div class="intro-cap" id="intro-cap" aria-hidden="true"><span class="ic-word">flow</span><span class="ic-tag">A study in sound</span></div>
   <div class="intro-fill" id="intro-fill" aria-hidden="true"></div>
   <button class="intro-skip" id="intro-skip" type="button">Пропустить интро <span class="arr">↗</span></button>
 </div>

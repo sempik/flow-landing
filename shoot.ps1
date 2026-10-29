@@ -2,6 +2,8 @@
 # Рендер идёт НА VPS (headless Chrome, ядра 1-4, nice 19, по одному), домашний ПК не грузится.
 # Пример: .\shoot.ps1 -Query "ch=1","ch=8" -W 1600 -H 900
 # Каждый query даёт <OutDir>\<имя>.jpg и <имя>.log (консоль страницы, ошибки JS)
+# Вызов снаружи (powershell -File shoot.ps1 -Query "ch=1","ch=8") передаёт массив одной строкой "ch=1,ch=8" —
+# поэтому -Query дополнительно режется по запятым: можно писать и -Query "ch=1,ch=8"
 param(
   [string]$Page = "dist\index.html",
   [string[]]$Query = @("ch=1"),
@@ -11,6 +13,7 @@ param(
   [int]$Budget = 7000,
   [string]$Suffix = ""
 )
+$Query = @($Query | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 $root = $PSScriptRoot
 . (Join-Path $root "remote.local.ps1")   # $vps, $key, $base
 $pagePath = (Resolve-Path (Join-Path $root $Page)).Path
