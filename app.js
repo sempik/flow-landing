@@ -3,7 +3,7 @@
 (() => {
   const N = 14;                       // 0 — интро, 1..12 — главы, 13 — финал
   const INTRO_END = 0.9 / N;          // на этом прогрессе интро полностью отыграно
-  const NAMES = ['Интро', 'Звук', 'Подпись', 'Тишина', 'Касание', 'Комната', 'Источники', 'Чат', 'Внутри', 'Драйвер', 'История', 'Вместе', 'Слушайте', 'Финал'];
+  const NAMES = ['Интро', 'Звук', 'Подпись', 'Тишина', 'Нажатие','Комната', 'Источники', 'Чат', 'Внутри', 'Драйвер', 'История', 'Вместе', 'Слушайте', 'Финал'];
 
   const root = document.documentElement;
   // модуль догрузился уже после аварийной статичной раскладки, а человек в ней листает:
@@ -106,7 +106,12 @@
     for (const w of words) {
       w.el.style.fontSize = '';
       const fs = parseFloat(getComputedStyle(w.el).fontSize);
-      const total = w.letters.reduce((s, L) => s + L.offsetWidth, 0);
+      // у букв есть поля под градиентный текст, компенсированные отрицательным margin:
+      // реальный вклад буквы в строку — ширина бокса плюс (отрицательные) отступы
+      const total = w.letters.reduce((s, L) => {
+        const cs = getComputedStyle(L);
+        return s + L.offsetWidth + (parseFloat(cs.marginLeft) || 0) + (parseFloat(cs.marginRight) || 0);
+      }, 0);
       const maxW = w.el.clientWidth * 0.98;
       if (total > maxW && total > 0) w.el.style.fontSize = `${(fs * maxW / total).toFixed(1)}px`;
     }
@@ -127,6 +132,9 @@
   });
   // правый край колонки карточек (без transform): панели и чипы у объекта не заходят под карточку
   let cardRight = 0;
+  // нижний счётчик глав: подпись под объектом его обходит
+  const counterEl = $('[data-test="counter"]');
+  let counterBox = null;
   const pins = $$('.anchor-layer .pin, .anchor-layer .anchored').map((el) => ({
     el, ch: +el.dataset.ch, anchor: el.dataset.anchor, fallback: el.dataset.fallback || 'center', place: el.dataset.place || '',
   }));
@@ -138,6 +146,8 @@
     for (const c of orbit.chips) { c._w = c.offsetWidth; c._h = c.offsetHeight; }
     cardRight = 0;
     for (const c of cards) cardRight = Math.max(cardRight, c.el.offsetLeft + c.el.offsetWidth);
+    const cr = counterEl ? counterEl.getBoundingClientRect() : null;
+    counterBox = cr && cr.width ? { l: cr.left, t: cr.top, r: cr.right, b: cr.bottom } : null;
   };
   measureSizes();
 
@@ -159,7 +169,7 @@
   const hint = $('#scroll-hint');
 
   // ---------- интро ----------
-  const intro = $('#intro'), beam = $('#intro-beam'), wordsBox = $('#intro-words'), rows = $$('.iw-row', intro);
+  const intro = $('#intro'), beam = $('#intro-beam'), beamGlow = $('#intro-glow'), wordsBox = $('#intro-words'), rows = $$('.iw-row', intro);
   const cup = $('#intro-cup'), cupBody = $('#cup-body'), cupPad = $('#cup-pad'), cupBand = $('#cup-band'), fill = $('#intro-fill');
   let ipAuto = 0;
   // человек уже сам листал/жал клавиши: старт после шрифтов не сбрасывает его наверх
@@ -268,12 +278,17 @@
     const base = baseline.getBoundingClientRect().bottom;
     try {
       const c = document.createElement('canvas').getContext('2d');
-      c.font = `400 ${fs}px "Bagel Fat One"`;
+      c.font = `800 ${fs}px "Syne"`;
       const m = c.measureText('o');
       const left = r.left - m.actualBoundingBoxLeft, right = r.left + m.actualBoundingBoxRight;
       gx = (left + right) / 2;
       gy = base - (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;
-      size = Math.max(right - left, m.actualBoundingBoxAscent + m.actualBoundingBoxDescent);
+      // «o» у Syne 800 — овал почти 2:1, а чашка круглая. Соседние буквы подтянуты к дырке
+      // отрицательным margin; диаметр — меньшее из «видимого зазора» и 1.35 высоты буквы
+      const ml = Math.max(0, -(parseFloat(cs.marginLeft) || 0)), mr = Math.max(0, -(parseFloat(cs.marginRight) || 0));
+      const gap = (right - left) - ml - mr;
+      const hgt = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+      size = Math.max(hgt, Math.min(gap * 0.92, hgt * 1.32));
     } catch (e) {
       gy = base - fs * 0.3; size = r.width * 0.9;
     }
@@ -318,15 +333,18 @@
     // в конце луч сам раскрывается почти до 90° и заливает экран светом, как в референсе
     const th = (Math.min(86, lerp(4, 23, spread) + 63 * easeIO(smooth(0.56, 0.8, ip))) * Math.PI) / 180;
     const h0 = 24 * sc, fh = h0 + L * Math.tan(th);
-    beam.style.clipPath = b > 0
+    const beamClip = b > 0
       ? `polygon(${ax}px ${ay - h0}px, ${ax + L}px ${ay - fh}px, ${ax + L}px ${ay + fh}px, ${ax}px ${ay + h0}px)`
       : 'polygon(0 0, 0 0, 0 0)';
+    beam.style.clipPath = beamClip;
+    // фиолетовый ореол вокруг луча: та же форма, размытая обёрткой
+    if (beamGlow) beamGlow.style.clipPath = beamClip;
     wordsBox.style.transform = `translateY(calc(-50% + ${ay - H / 2}px))`;
     rows.forEach((r, k) => {
       const dir = k % 2 ? 1 : -1;
       r.style.transform = `translateX(${(dir * (ip * 26 - 6) + (k - 1) * 9)}vw)`;
     });
-    // заливка оранжевым: мягкое пятно растёт изнутри луча (правее силуэта), силуэт чашки виден до конца
+    // заливка фоном сайта (тёмный + свечения): мягкое пятно растёт изнутри луча (правее силуэта), силуэт чашки виден до конца
     const fx = ax + W * 0.35, fy = ay;
     const R = Math.hypot(Math.max(fx, W - fx), Math.max(fy, H - fy)) * easeIO(f) * 2.0;
     if (f <= 0) fill.style.opacity = '0';
@@ -346,11 +364,12 @@
     // буквы выезжают из-под маски (clip-path), а не проявляются прозрачностью:
     // полупрозрачный циан на оранжевом даёт грязно-оливковый цвет. Маска нужна, пока буквы
     // движутся строкой; у «рассыпающихся» слов на время разлёта её снимаем.
-    const clip = w.fx === 'scatter-out' ? d < 0.04 : w.fx === 'scatter-in' ? d > -0.04 : true;
+    // В покое (-0.06..0.14) буквы стоят на месте и маска не нужна — снимаем её, иначе прямой край
+    // clip-path обрезал бы фиолетовое свечение слова прямоугольником.
+    const clip = (w.fx !== 'scatter-in' && d < -0.06) || (!noExit && w.fx !== 'scatter-out' && d > 0.14);
     if (clip !== w.clip) { w.clip = clip; w.el.classList.toggle('is-masked', clip); }
-    // пока буквы выезжают из-под маски, размытые слои тени снимаем: прямой край маски
-    // резал бы их ступенькой поперёк фона
-    const moving = clip && (d < -0.06 || (!noExit && w.fx !== 'scatter-out' && d > 0.14));
+    // пока буквы выезжают из-под маски, свечение снимаем: прямой край маски резал бы его ступенькой
+    const moving = clip;
     if (moving !== w.moving) { w.moving = moving; w.el.classList.toggle('is-moving', moving); }
     const n = w.letters.length, stg = 0.13;
     for (let j = 0; j < n; j++) {
@@ -450,7 +469,8 @@
       if (pn.place === 'left') {
         // плашка прижата к левому краю чашки на её середине и чуть заходит на корпус
         // отступ считаем от обода чашки (экранный радиус ≈ 0.17·min(W,H)), а не от её центра
-        x = a.x - w - Math.min(W, H) * 0.2; y = a.y - h * 0.15;
+        // плюс зазор ~24 px: карточка кода не упирается в чашку
+        x = a.x - w - Math.min(W, H) * 0.2 - 24; y = a.y - h * 0.15;
         // на мобилке компактная плашка уходит под чашку, влево — не закрывает драйвер
         if (mob) { x = 16; y = a.y + Math.min(W, H) * 0.12; }
         x = clamp(x, xLo, Math.max(xLo, W - w - (mob ? 16 : 70)));
@@ -458,10 +478,16 @@
         y += (1 - v) * 24;
       } else {
         // pin: якорь — центр «+» (margin -17px). below — подпись под объектом, side — сбоку от детали
-        if (pn.place === 'below') { x = a.x - w / 2 + 17; y = a.y + H * (mob ? 0.17 : 0.3); }
+        if (pn.place === 'below') { x = a.x - w / 2 + 17; y = a.y + H * (mob ? 0.17 : H < 480 ? 0.34 : 0.3); }
         else if (pn.place === 'side') { x = a.x + Math.min(W, H) * 0.17; y = a.y - H * 0.1; }
         const pLo = mob ? 34 : Math.max(34, xLo + 17);
-        x = clamp(x, pLo, Math.max(pLo, W - w - (mob ? 12 : 60))); y = clamp(y, 100, Math.max(100, mob ? H * 0.6 : H - 110));
+        // низкий альбом (телефон боком): сцена ставит объект выше, подпись уходит под него почти до низа
+        const low = !mob && H < 480;
+        x = clamp(x, pLo, Math.max(pLo, W - w - (mob ? 12 : 60))); y = clamp(y, low ? 60 : 100, Math.max(100, mob ? H * 0.6 : low ? H - h + 17 - 14 : H - 110));
+        // и не ложится на счётчик глав: если пересекаются — сдвигаем левее счётчика (бокс пина = x−17, y−17)
+        if (low && counterBox && y - 17 + h > counterBox.t - 6 && x - 17 + w > counterBox.l - 12 && x - 17 < counterBox.r) {
+          x = Math.max(pLo, counterBox.l - 12 - w + 17);
+        }
         y += (1 - v) * 12;
       }
       const vs = v > 0.001 ? 'visible' : 'hidden';
@@ -643,8 +669,8 @@
   const fontsReady = () => {
     if (!document.fonts || !document.fonts.load) return Promise.resolve();
     const loads = [
-      '400 100px "Bagel Fat One"', '900 100px "Unbounded"', '800 40px "Rubik"', '700 10px "Rubik"',
-      'italic 500 34px "Playfair Display"', '900 100px "Playfair Display"', '400 15px "PT Serif"',
+      '800 100px "Unbounded"', '700 32px "Unbounded"', '400 15px "Onest"', '500 14px "Onest"',
+      '600 10px "Onest"', '800 100px "Syne"',
     ].map((f) => document.fonts.load(f, 'АБВflow').catch(() => null));
     return Promise.race([Promise.all(loads).then(() => document.fonts.ready), new Promise((r) => setTimeout(r, 2500))]);
   };

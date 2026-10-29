@@ -127,7 +127,7 @@ function checkSnapshot(label, s) {
     for (const h of hooks.downloads) if (!h.startsWith('https://flowww.space')) fail('ссылки', `download ведёт на ${h}`);
 
     const fonts = await page.evaluate(async () => {
-      const probe = [['Rubik', 'Ж'], ['Playfair Display', 'Ж'], ['PT Serif', 'Ж'], ['Unbounded', 'Ж'], ['Bagel Fat One', 'f']];
+      const probe = [['Unbounded', 'Ж'], ['Onest', 'Ж'], ['Syne', 'f']];
       const res = {};
       for (const [f, ch] of probe) {
         try { await document.fonts.load(`700 32px "${f}"`, ch); } catch {}
